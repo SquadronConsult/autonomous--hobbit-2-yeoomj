@@ -1,0 +1,51 @@
+---
+all:
+  children:
+    edge_nodes:
+      hosts:
+        jetson-dev-01:
+          ansible_host: 192.168.1.101
+          ansible_user: nvidia
+          device_type: Jetson AGX Orin 64GB
+          cuda_version: "11.8"
+          l4t_version: "35.3.1"
+          docker_runtime: nvidia
+        jetson-dev-02:
+          ansible_host: 192.168.1.102
+          ansible_user: nvidia
+          device_type: Jetson AGX Orin 64GB
+          cuda_version: "11.8"
+          l4t_version: "35.3.1"
+          docker_runtime: nvidia
+      vars:
+        deepstream_version: "6.2"
+        tao_version: "4.0"
+        ros_version: jazzy
+        gazebo_version: "11.0"
+        gpu_enabled: true
+        container_registry: nvcr.io/nvidia
+
+    monitoring_nodes:
+      hosts:
+        monitor-dev-01:
+          ansible_host: 192.168.1.201
+          ansible_user: admin
+          monitoring_role: primary
+      vars:
+        prometheus_version: v2.45.0
+        grafana_version: "9.5.0"
+        jaeger_version: "1.47"
+        retention_days: 15
+        metrics_port: 9090
+        grafana_port: 3000
+        jaeger_port: 16686
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    environment: dev
+    docker_version: "23.0"
+    kubernetes_version: "1.26"
+    timezone: UTC
+    log_level: debug
+    backup_enabled: true
+    monitoring_enabled: true
