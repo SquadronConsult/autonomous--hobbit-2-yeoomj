@@ -1,0 +1,95 @@
+/**
+ * Dark Theme Implementation
+ * Agricultural Management System Web Interface
+ * Following Material Design 3.0 specifications
+ * WCAG 2.1 Level AA compliant
+ * Version: 1.0.0
+ */
+
+@import '../variables.css';
+
+[data-theme='dark'] {
+  /* Primary Colors - Blue */
+  --color-primary: #90CAF9; /* WCAG AA contrast: 4.5:1 */
+  --color-primary-light: #BBDEFB;
+  --color-primary-dark: #42A5F5;
+  --color-primary-contrast: #000000;
+
+  /* Secondary Colors - Green */
+  --color-secondary: #81C784; /* WCAG AA contrast: 4.5:1 */
+  --color-secondary-light: #A5D6A7;
+  --color-secondary-dark: #66BB6A;
+  --color-secondary-contrast: #000000;
+
+  /* Background Colors */
+  --color-background: #121212; /* Material Design dark theme base */
+  --color-background-paper: #1E1E1E;
+  --color-background-elevated: #242424;
+  --color-background-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text Colors - WCAG AA compliant */
+  --color-text-primary: rgba(255, 255, 255, 0.87); /* High emphasis text */
+  --color-text-secondary: rgba(255, 255, 255, 0.6); /* Medium emphasis text */
+  --color-text-disabled: rgba(255, 255, 255, 0.38); /* Disabled text */
+  --color-text-hint: rgba(255, 255, 255, 0.38); /* Hint text */
+
+  /* Status Colors */
+  --color-status-success: #66BB6A;
+  --color-status-warning: #FFA726;
+  --color-status-error: #EF5350;
+  --color-status-info: #42A5F5;
+
+  /* Surface and Interactive Colors */
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-divider: rgba(255, 255, 255, 0.12);
+  --color-hover: rgba(255, 255, 255, 0.08);
+  --color-focus: rgba(255, 255, 255, 0.12);
+
+  /* Elevation Shadows - Material Design dark theme */
+  --elevation-1: 0px 2px 1px -1px rgba(0,0,0,0.2),
+                 0px 1px 1px 0px rgba(0,0,0,0.14),
+                 0px 1px 3px 0px rgba(0,0,0,0.12);
+  --elevation-2: 0px 3px 3px -2px rgba(0,0,0,0.2),
+                 0px 3px 4px 0px rgba(0,0,0,0.14),
+                 0px 1px 8px 0px rgba(0,0,0,0.12);
+  --elevation-3: 0px 3px 5px -1px rgba(0,0,0,0.2),
+                 0px 5px 8px 0px rgba(0,0,0,0.14),
+                 0px 1px 14px 0px rgba(0,0,0,0.12);
+  --elevation-4: 0px 4px 5px -2px rgba(0,0,0,0.2),
+                 0px 7px 10px 1px rgba(0,0,0,0.14),
+                 0px 2px 16px 1px rgba(0,0,0,0.12);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 767px) {
+  [data-theme='dark'] {
+    --elevation-1: none; /* Remove shadows on mobile */
+    --elevation-2: none;
+    --color-background-elevated: #1E1E1E; /* Flatten hierarchy */
+  }
+}
+
+/* Tablet Adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-theme='dark'] {
+    --color-background-paper: #1A1A1A;
+    --color-background-elevated: #222222;
+  }
+}
+
+/* Desktop Enhancements */
+@media (min-width: 1024px) {
+  [data-theme='dark'] {
+    --color-background-elevated: #2C2C2C;
+    --color-background-paper: #1E1E1E;
+  }
+}
+
+/* Large Screen Optimizations */
+@media (min-width: 1440px) {
+  [data-theme='dark'] {
+    --color-background: #141414;
+    --color-background-paper: #1E1E1E;
+    --color-background-elevated: #2C2C2C;
+  }
+}
