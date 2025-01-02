@@ -1,0 +1,166 @@
+---
+# Ansible playbook for deploying the autonomous agricultural management system
+# Version: 1.0.0
+# Last updated: 2024-02-20
+# Requires: Ansible 2.15+
+
+- name: Deploy Autonomous Agricultural Management System
+  hosts: edge_nodes
+  become: true
+  gather_facts: true
+  environment:
+    NVIDIA_VISIBLE_DEVICES: all
+    NVIDIA_DRIVER_CAPABILITIES: all
+
+  pre_tasks:
+    - name: Run pre-deployment validation checks
+      block:
+        - name: Verify hardware compatibility
+          ansible.builtin.shell: |
+            nvidia-smi --query-gpu=gpu_name --format=csv,noheader
+          register: gpu_check
+          failed_when: "'Orin' not in gpu_check.stdout"
+          changed_when: false
+
+        - name: Check CUDA installation
+          ansible.builtin.command: nvcc --version
+          register: cuda_check
+          failed_when: cuda_check.rc != 0
+          changed_when: false
+
+        - name: Verify system resources
+          ansible.builtin.setup:
+            gather_subset:
+              - hardware
+              - virtual
+          register: system_info
+
+        - name: Validate system requirements
+          ansible.builtin.assert:
+            that:
+              - system_info.ansible_facts.ansible_memory_mb.real.total >= 32768
+              - system_info.ansible_facts.ansible_processor_vcpus >= 8
+            fail_msg: "System does not meet minimum hardware requirements"
+
+  roles:
+    - role: common
+      tags: ['system', 'security']
+      vars:
+        system_timezone: "UTC"
+        system_locale: "en_US.UTF-8"
+        security_limits:
+          nofile_soft: 65536
+          nofile_hard: 65536
+          nproc_soft: 65536
+          nproc_hard: 65536
+
+    - role: docker
+      tags: ['docker', 'container-runtime']
+      vars:
+        docker_version: "24.0.5"
+        docker_compose_version: "2.20.2"
+        nvidia_container_runtime_version: "3.13.0"
+
+    - role: kubernetes
+      tags: ['kubernetes', 'orchestration']
+      vars:
+        kubernetes_version: "1.27.3"
+        pod_network_cidr: "192.168.0.0/16"
+        service_cidr: "10.96.0.0/12"
+
+    - role: monitoring
+      tags: ['monitoring']
+      vars:
+        prometheus_version: "2.45.0"
+        grafana_version: "9.5.3"
+        jaeger_version: "1.41.0"
+
+  tasks:
+    - name: Deploy core system components
+      block:
+        - name: Create namespace
+          community.kubernetes.k8s:
+            state: present
+            definition: "{{ lookup('file', '../../../k8s/base/namespace.yaml') | from_yaml }}"
+
+        - name: Apply ConfigMaps
+          community.kubernetes.k8s:
+            state: present
+            definition: "{{ lookup('file', '../../../k8s/base/configmaps.yaml') | from_yaml }}"
+
+        - name: Apply Secrets
+          community.kubernetes.k8s:
+            state: present
+            definition: "{{ lookup('file', '../../../k8s/base/secrets.yaml') | from_yaml }}"
+
+        - name: Deploy monitoring stack
+          community.kubernetes.k8s:
+            state: present
+            definition: "{{ item }}"
+          with_items:
+            - "{{ lookup('file', '../../../k8s/monitoring/prometheus/deployment.yaml') | from_yaml }}"
+            - "{{ lookup('file', '../../../k8s/monitoring/prometheus/configmap.yaml') | from_yaml }}"
+            - "{{ lookup('file', '../../../k8s/monitoring/prometheus/service.yaml') | from_yaml }}"
+            - "{{ lookup('file', '../../../k8s/monitoring/grafana/deployment.yaml') | from_yaml }}"
+            - "{{ lookup('file', '../../../k8s/monitoring/grafana/configmap.yaml') | from_yaml }}"
+            - "{{ lookup('file', '../../../k8s/monitoring/jaeger/deployment.yaml') | from_yaml }}"
+
+    - name: Verify deployment
+      block:
+        - name: Wait for core services
+          community.kubernetes.k8s_info:
+            kind: Pod
+            namespace: agricultural-system
+            label_selectors:
+              - app in (prometheus, grafana, jaeger)
+          register: core_services
+          until: 
+            - core_services.resources | length > 0
+            - core_services.resources | map(attribute='status.phase') | list | unique == ['Running']
+          retries: 30
+          delay: 10
+
+        - name: Check monitoring endpoints
+          ansible.builtin.uri:
+            url: "http://{{ item.service }}:{{ item.port }}{{ item.path }}"
+            method: GET
+            status_code: 200
+          register: health_check
+          until: health_check is success
+          retries: 6
+          delay: 10
+          with_items:
+            - { service: 'prometheus', port: '9090', path: '/-/healthy' }
+            - { service: 'grafana', port: '3000', path: '/api/health' }
+            - { service: 'jaeger', port: '14268', path: '/' }
+
+  post_tasks:
+    - name: Export deployment status
+      ansible.builtin.set_fact:
+        deployment_status:
+          system_health:
+            hardware_check: "{{ gpu_check.rc == 0 }}"
+            cuda_status: "{{ cuda_check.rc == 0 }}"
+            resource_check: "{{ system_info is success }}"
+          component_status: "{{ core_services.resources | map(attribute='status') | list }}"
+          security_validation:
+            certificates: "{{ lookup('file', '../../../k8s/base/secrets.yaml') is success }}"
+            policies: "{{ lookup('file', '../../../k8s/base/namespace.yaml') is success }}"
+          performance_metrics:
+            monitoring_health: "{{ health_check is success }}"
+
+  handlers:
+    - name: restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+
+    - name: restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: restart kubelet
+      ansible.builtin.service:
+        name: kubelet
+        state: restarted
