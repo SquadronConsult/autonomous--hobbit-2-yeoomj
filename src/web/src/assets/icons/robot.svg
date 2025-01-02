@@ -1,0 +1,12 @@
+<svg 
+  xmlns="http://www.w3.org/2000/svg" 
+  viewBox="0 0 24 24"
+  width="24"
+  height="24"
+  fill="currentColor"
+  aria-label="Ground Robot Icon"
+  role="img"
+  preserveAspectRatio="xMidYMid meet"
+>
+  <path d="M12 3C8.41 3 5.5 5.91 5.5 9.5V14c0 .73-.22 1.41-.58 2H5c-1.1 0-2 .9-2 2v2c0 .55.45 1 1 1h1v-1h12v1h1c.55 0 1-.45 1-1v-2c0-1.1-.9-2-2-2h.08c-.36-.59-.58-1.27-.58-2V9.5C16.5 5.91 13.59 3 10 3h2zm-2 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm4 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM8 9.5c0-2.21 1.79-4 4-4s4 1.79 4 4V11H8V9.5z"/>
+</svg>
