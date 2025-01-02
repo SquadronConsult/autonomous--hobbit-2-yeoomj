@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Containerized Autonomous Agricultural Management System Dashboard">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss: https:">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Agricultural Management System">
+    
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/svg+xml" href="/src/assets/images/logo.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- Font Preloading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    
+    <!-- Resource Hints -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="preload" href="/src/assets/images/logo.svg" as="image" type="image/svg+xml">
+    
+    <!-- Application Title -->
+    <title>Agricultural Management System</title>
+</head>
+<body>
+    <!-- Application Root -->
+    <main id="root" role="main" aria-label="Agricultural Management System Dashboard">
+        <!-- React Application Mount Point -->
+    </main>
+
+    <!-- No JavaScript Fallback -->
+    <noscript>
+        <div class="noscript-message" role="alert">
+            <h1>JavaScript Required</h1>
+            <p>This application requires JavaScript to be enabled. Please enable JavaScript to continue.</p>
+        </div>
+    </noscript>
+
+    <!-- Error Boundary Fallback -->
+    <div id="error-root" style="display: none;" role="alert" aria-live="assertive"></div>
+
+    <!-- Application Entry Point -->
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Development Tools - Only included in development mode -->
+    <% if (import.meta.env.DEV) { %>
+    <script type="module" src="/@vite/client"></script>
+    <% } %>
+</body>
+</html>
