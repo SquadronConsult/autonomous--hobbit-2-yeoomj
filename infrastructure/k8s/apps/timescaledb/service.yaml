@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/version: "2.11"
+    monitoring.agricultural-system.io/scrape: "true"
+    security.agricultural-system.io/restricted: "true"
+  annotations:
+    service.kubernetes.io/topology-aware-hints: "auto"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5432"
+    service.beta.kubernetes.io/target-failure-domain: "failure-domain.beta.kubernetes.io/zone"
+    service.kubernetes.io/load-balancer-source-ranges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgresql
+      appProtocol: postgresql
+  selector:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/component: database
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hour session stickiness
+  publishNotReadyAddresses: false
+  internalTrafficPolicy: Cluster
+  ipFamilyPolicy: PreferDualStack
+  ipFamilies:
+    - IPv4
+    - IPv6
