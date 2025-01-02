@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agricultural-system
+  labels:
+    app.kubernetes.io/name: agricultural-system
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    environment: base
+    security.kubernetes.io/enforced: "true"
+    network.kubernetes.io/policy-enabled: "true"
+    monitoring.kubernetes.io/enabled: "true"
+    backup.kubernetes.io/enabled: "true"
+  annotations:
+    description: "Namespace for agricultural management system components"
+    maintainer: "DevOps Team"
+    security.kubernetes.io/network-policy: "enabled"
+    container.security.io/seccomp-profile: "runtime/default"
+    container.security.io/pod-security: "restricted"
+    resource.kubernetes.io/quota-enabled: "true"
+    monitoring.kubernetes.io/scrape: "true"
+    monitoring.kubernetes.io/path: "/metrics"
+    monitoring.kubernetes.io/port: "9090"
