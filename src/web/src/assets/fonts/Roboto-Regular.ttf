@@ -1,0 +1,23 @@
+/* This is a binary TTF font file containing the Roboto Regular font.
+   File size: 168KB
+   Version: 2.137
+   License: Apache License, Version 2.0
+   
+   The actual binary content would be here but cannot be represented in text format.
+   In production, this file should be the official Roboto-Regular.ttf from Google Fonts
+   or another authorized source. */
+```
+
+Note: The actual TTF file would be a binary file containing the Roboto Regular font data. The font file should be obtained from official sources like Google Fonts to ensure authenticity and proper licensing compliance. The font file is referenced by CSS files in the project and is used as the primary typography for the Agricultural Management System web interface.
+
+The font is used in conjunction with CSS that defines its usage, which would typically look like this in the referencing CSS files:
+
+```css
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./Roboto-Regular.ttf') format('truetype');
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
