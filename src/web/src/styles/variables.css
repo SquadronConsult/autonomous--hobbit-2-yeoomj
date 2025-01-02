@@ -1,0 +1,138 @@
+/**
+ * Global CSS Custom Properties (Variables)
+ * Agricultural Management System Web Interface
+ * Following Material Design 3.0 specifications
+ * Version: 1.0.0
+ */
+
+:root {
+  /* Typography - Font Families */
+  --font-family-primary: "Roboto", "Noto Sans", system-ui, sans-serif;
+  --font-family-monospace: "Roboto Mono", monospace;
+  --font-family-variable: "Roboto Variable", "Noto Sans Variable", system-ui, sans-serif;
+
+  /* Typography - Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-variable: 100 900;
+
+  /* Typography - Line Heights & Letter Spacing */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+
+  /* Typography - Font Sizes (rem-based scale) */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-md: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-4xl: 2.25rem;   /* 36px */
+  --font-size-5xl: 3rem;      /* 48px */
+  --font-size-6xl: 3.75rem;   /* 60px */
+
+  /* Spacing Scale */
+  --spacing-3xs: 0.125rem;    /* 2px */
+  --spacing-2xs: 0.25rem;     /* 4px */
+  --spacing-xs: 0.5rem;       /* 8px */
+  --spacing-sm: 0.75rem;      /* 12px */
+  --spacing-md: 1rem;         /* 16px */
+  --spacing-lg: 1.5rem;       /* 24px */
+  --spacing-xl: 2rem;         /* 32px */
+  --spacing-2xl: 3rem;        /* 48px */
+  --spacing-3xl: 4rem;        /* 64px */
+  --spacing-4xl: 6rem;        /* 96px */
+
+  /* Grid System */
+  --grid-gap-sm: 0.5rem;
+  --grid-gap-md: 1rem;
+  --grid-gap-lg: 1.5rem;
+  --grid-columns: 12;
+  --container-padding: var(--spacing-md);
+  --container-max-width-sm: 640px;
+  --container-max-width-md: 768px;
+  --container-max-width-lg: 1024px;
+  --container-max-width-xl: 1280px;
+
+  /* Border Radius */
+  --border-radius-none: 0;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-2xl: 24px;
+  --border-radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  --focus-ring: 0 0 0 3px rgba(66, 153, 225, 0.5);
+
+  /* Transitions */
+  --transition-duration-fast: 150ms;
+  --transition-duration-normal: 250ms;
+  --transition-duration-slow: 350ms;
+  --transition-timing-ease: ease;
+  --transition-timing-linear: linear;
+  --transition-timing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Breakpoints */
+  --breakpoint-mobile: 320px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-large: 1440px;
+
+  /* Z-Index Scale */
+  --z-index-negative: -1;
+  --z-index-base: 1;
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767px) {
+  :root {
+    --container-padding: var(--spacing-sm);
+    --grid-gap-md: var(--spacing-sm);
+    --font-size-6xl: 2.5rem;
+    --font-size-5xl: 2rem;
+    --spacing-4xl: 4rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --container-padding: var(--spacing-md);
+    --grid-gap-md: var(--spacing-md);
+    --font-size-6xl: 3rem;
+    --font-size-5xl: 2.5rem;
+    --spacing-4xl: 5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --container-padding: var(--spacing-lg);
+    --grid-gap-md: var(--spacing-md);
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --container-padding: var(--spacing-xl);
+    --grid-gap-lg: var(--spacing-lg);
+  }
+}
