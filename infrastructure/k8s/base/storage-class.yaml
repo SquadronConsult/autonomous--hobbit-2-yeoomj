@@ -1,0 +1,50 @@
+# Kubernetes Storage API version: storage.k8s.io/v1
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+
+# High-performance NVMe storage class for databases and caching
+---
+metadata:
+  name: fast-local-storage
+  labels:
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/managed-by: kustomize
+provisioner: kubernetes.io/local-storage
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+parameters:
+  # NVMe storage configuration for high-performance requirements
+  type: nvme
+  fsType: ext4
+  # IOPS and throughput optimized for database workloads
+  iopsPerGB: "50"
+  throughputPerGB: "100"
+  # Performance and data protection settings
+  cacheMode: WriteBack
+  dataEncryption: "true"
+  compressionType: lz4
+
+# Standard storage class for general persistent storage needs
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard-storage
+  labels:
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/managed-by: kustomize
+provisioner: kubernetes.io/local-storage
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+parameters:
+  # Standard storage configuration for general use
+  type: ssd
+  fsType: ext4
+  # Balanced IOPS and throughput for general workloads
+  iopsPerGB: "10"
+  throughputPerGB: "50"
+  # Default data protection settings
+  dataEncryption: "true"
+  compressionType: zstd
