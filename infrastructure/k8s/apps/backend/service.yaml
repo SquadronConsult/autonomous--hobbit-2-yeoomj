@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: api
+    app.kubernetes.io/managed-by: kubernetes
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+    service.kubernetes.io/topology-aware-hints: "auto"
+    description: "Backend service for Agricultural Management System"
+    maintainer: "DevOps Team"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-api
+      port: 3000
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: backend
+  sessionAffinity: None
+  publishNotReadyAddresses: false
+  internalTrafficPolicy: Cluster
+  ipFamilyPolicy: SingleStack
+  ipFamilies:
+    - IPv4
