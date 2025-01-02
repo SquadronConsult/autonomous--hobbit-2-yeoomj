@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gazebo-simulation
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: gazebo
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: simulation
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    service.beta.kubernetes.io/monitor: "true"
+    description: "Gazebo simulation service for agricultural system"
+    security.kubernetes.io/network-policy: "enabled"
+    service.kubernetes.io/topology-aware-hints: "auto"
+    service.kubernetes.io/traffic-policy: "Cluster"
+
+spec:
+  type: ClusterIP
+  ports:
+    - port: 11345
+      targetPort: 11345
+      name: gazebo
+      protocol: TCP
+      appProtocol: tcp
+    - port: 9090
+      targetPort: 9090
+      name: ros-bridge
+      protocol: TCP
+      appProtocol: tcp
+  selector:
+    app.kubernetes.io/name: gazebo
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  internalTrafficPolicy: Cluster
+  ipFamilyPolicy: SingleStack
+  ipFamilies:
+    - IPv4
