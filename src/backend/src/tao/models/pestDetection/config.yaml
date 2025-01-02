@@ -1,0 +1,86 @@
+# NVIDIA TAO Toolkit Configuration v4.0.0
+# Pest Detection Model Configuration for Agricultural Applications
+
+model_parameters:
+  architecture: YOLOv4
+  input_shape: [3, 640, 640]  # [channels, height, width]
+  backbone: ResNet50
+  num_classes: 10  # Number of pest classes to detect
+  anchors: [[10, 13], [16, 30], [33, 23]]  # Anchor box dimensions
+  pretrained_weights: ${MODEL_STORE_PATH}/base_models/yolov4_resnet50.pth
+
+training_config:
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  momentum: 0.9
+  weight_decay: 0.0005
+  
+  lr_scheduler:
+    type: cosine
+    min_lr: 0.00001
+    warmup_epochs: 5
+
+  augmentation:
+    horizontal_flip: true
+    vertical_flip: false
+    rotation: 15
+    color_jitter:
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+
+  loss_weights:
+    bbox_loss: 1.0
+    conf_loss: 1.0
+    cls_loss: 1.0
+
+optimization_config:
+  pruning:
+    enabled: true
+    target_sparsity: 0.5
+    pruning_schedule: polynomial
+    start_epoch: 10
+    end_epoch: 80
+
+  quantization:
+    enabled: true
+    precision: FP16  # Optimized for Jetson Orin
+    calibration_batches: 10
+    calibration_method: entropy
+
+  trt_optimization:
+    workspace_size: 1024  # MB
+    min_batch_size: 1
+    opt_batch_size: 8
+    max_batch_size: 16
+
+inference_config:
+  confidence_threshold: 0.85  # High threshold for 95% accuracy requirement
+  nms_threshold: 0.45
+  max_detections: 100
+  
+  input_tensor_names: 
+    - input
+  output_tensor_names:
+    - boxes
+    - scores
+    - classes
+
+  preprocessing:
+    mean: [0.485, 0.456, 0.406]  # ImageNet normalization
+    std: [0.229, 0.224, 0.225]
+    to_rgb: true
+
+  postprocessing:
+    score_threshold: 0.85
+    iou_threshold: 0.45
+    max_output_boxes: 100
+
+export_config:
+  format: tensorrt  # Optimized for edge deployment
+  precision: FP16  # Reduced latency for <100ms processing
+  workspace_size: 1024  # MB
+  min_timing_iterations: 1
+  avg_timing_iterations: 8
+  engine_path: ${MODEL_STORE_PATH}/pest_detection/model.engine
