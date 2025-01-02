@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    # Enable topology aware routing for better pod-to-pod latency
+    service.kubernetes.io/topology-aware-hints: "auto"
+    # Enable Prometheus metrics scraping
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9121"
+spec:
+  # Selector matching the Redis StatefulSet pods
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    # Main Redis port for cache and pub/sub
+    - port: 6379
+      targetPort: 6379
+      name: redis
+    # Prometheus metrics exporter port
+    - port: 9121
+      targetPort: 9121
+      name: metrics
+  # Headless service for StatefulSet DNS-based discovery
+  clusterIP: None
+  type: ClusterIP
+  # Don't publish pods that aren't ready yet
+  publishNotReadyAddresses: false
+  # No session affinity needed for stateless cache access
+  sessionAffinity: None
