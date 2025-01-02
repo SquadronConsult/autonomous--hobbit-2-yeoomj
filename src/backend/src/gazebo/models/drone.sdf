@@ -1,0 +1,241 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+    <model name="agricultural_drone">
+        <!-- Main drone body -->
+        <link name="base_link">
+            <inertial>
+                <mass>4.5</mass>
+                <inertia>
+                    <ixx>0.082</ixx>
+                    <iyy>0.082</iyy>
+                    <izz>0.149</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.50 0.50 0.12</size>
+                    </box>
+                </geometry>
+            </collision>
+
+            <visual name="visual">
+                <geometry>
+                    <box>
+                        <size>0.50 0.50 0.12</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0.2 0.2 0.2 1.0</ambient>
+                    <diffuse>0.2 0.2 0.2 1.0</diffuse>
+                    <specular>0.1 0.1 0.1 1.0</specular>
+                </material>
+            </visual>
+
+            <!-- Camera Sensor -->
+            <sensor name="camera_sensor" type="camera">
+                <update_rate>30.0</update_rate>
+                <camera>
+                    <horizontal_fov>1.5708</horizontal_fov>
+                    <image>
+                        <width>1920</width>
+                        <height>1080</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>100.0</far>
+                    </clip>
+                    <distortion>
+                        <k1>0.0</k1>
+                        <k2>0.0</k2>
+                        <k3>0.0</k3>
+                        <p1>0.0</p1>
+                        <p2>0.0</p2>
+                    </distortion>
+                </camera>
+            </sensor>
+
+            <!-- IMU Sensor -->
+            <sensor name="imu_sensor" type="imu">
+                <update_rate>100.0</update_rate>
+                <imu>
+                    <noise>
+                        <type>gaussian</type>
+                        <accel>
+                            <mean>0.0</mean>
+                            <stddev>0.001</stddev>
+                            <bias_mean>0.005</bias_mean>
+                        </accel>
+                        <gyro>
+                            <mean>0.0</mean>
+                            <stddev>0.0001</stddev>
+                            <bias_mean>0.0001</bias_mean>
+                        </gyro>
+                    </noise>
+                </imu>
+            </sensor>
+
+            <!-- GPS Sensor -->
+            <sensor name="gps_sensor" type="gps">
+                <update_rate>10.0</update_rate>
+                <gps>
+                    <position_sensing>
+                        <horizontal>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.1</stddev>
+                            </noise>
+                        </horizontal>
+                        <vertical>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.1</stddev>
+                            </noise>
+                        </vertical>
+                    </position_sensing>
+                    <velocity_sensing>
+                        <horizontal>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.05</stddev>
+                            </noise>
+                        </horizontal>
+                        <vertical>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.05</stddev>
+                            </noise>
+                        </vertical>
+                    </velocity_sensing>
+                </gps>
+            </sensor>
+        </link>
+
+        <!-- Rotor joints and links -->
+        <link name="rotor1">
+            <pose>0.25 0.25 0.02 0 0 0</pose>
+            <inertial>
+                <mass>0.025</mass>
+                <inertia>
+                    <ixx>0.0000735</ixx>
+                    <iyy>0.0000735</iyy>
+                    <izz>0.0001470</izz>
+                </inertia>
+            </inertial>
+            <collision name="collision">
+                <geometry>
+                    <cylinder>
+                        <radius>0.12</radius>
+                        <length>0.02</length>
+                    </cylinder>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <geometry>
+                    <cylinder>
+                        <radius>0.12</radius>
+                        <length>0.02</length>
+                    </cylinder>
+                </geometry>
+            </visual>
+        </link>
+
+        <joint name="rotor1_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>rotor1</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+            </axis>
+        </joint>
+
+        <!-- Similar definitions for rotors 2-4 with appropriate poses -->
+        <!-- Rotor 2 -->
+        <link name="rotor2">
+            <pose>-0.25 0.25 0.02 0 0 0</pose>
+            <!-- Similar inertial, collision, and visual properties as rotor1 -->
+        </link>
+        <joint name="rotor2_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>rotor2</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+            </axis>
+        </joint>
+
+        <!-- Rotor 3 -->
+        <link name="rotor3">
+            <pose>-0.25 -0.25 0.02 0 0 0</pose>
+            <!-- Similar inertial, collision, and visual properties as rotor1 -->
+        </link>
+        <joint name="rotor3_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>rotor3</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+            </axis>
+        </joint>
+
+        <!-- Rotor 4 -->
+        <link name="rotor4">
+            <pose>0.25 -0.25 0.02 0 0 0</pose>
+            <!-- Similar inertial, collision, and visual properties as rotor1 -->
+        </link>
+        <joint name="rotor4_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>rotor4</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+            </axis>
+        </joint>
+
+        <!-- Drone Controller Plugin -->
+        <plugin name="drone_controller" filename="librobotController.so">
+            <update_rate>100.0</update_rate>
+            <max_thrust>40.0</max_thrust>
+            <max_torque>20.0</max_torque>
+            <moment_constant>0.016</moment_constant>
+            <motor_constant>8.54858e-06</motor_constant>
+            <position_gain>
+                <x>5.0</x>
+                <y>5.0</y>
+                <z>7.0</z>
+            </position_gain>
+            <velocity_gain>
+                <x>2.0</x>
+                <y>2.0</y>
+                <z>3.0</z>
+            </velocity_gain>
+        </plugin>
+
+        <!-- Sensor Suite Plugin -->
+        <plugin name="sensor_suite" filename="libsensorPlugin.so">
+            <camera_update_rate>30.0</camera_update_rate>
+            <imu_update_rate>100.0</imu_update_rate>
+            <gps_update_rate>10.0</gps_update_rate>
+            <camera_topic>/drone/camera/image_raw</camera_topic>
+            <imu_topic>/drone/imu/data</imu_topic>
+            <gps_topic>/drone/gps/fix</gps_topic>
+        </plugin>
+    </model>
+</sdf>
