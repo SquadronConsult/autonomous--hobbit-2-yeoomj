@@ -1,0 +1,73 @@
+---
+all:
+  vars:
+    # Core Ansible configuration
+    ansible_python_interpreter: /usr/bin/python3
+    environment: prod
+
+    # Version specifications
+    docker_version: "23.0"
+    kubernetes_version: "1.26"
+    deepstream_version: "6.2"
+    tao_version: "4.0"
+    ros_version: "jazzy"
+    gazebo_version: "11.0"
+
+    # Global system settings
+    monitoring_enabled: true
+    log_level: INFO
+    backup_enabled: true
+    backup_retention_days: 90
+    ssl_enabled: true
+    network_type: private_5g
+
+    # Resource limits
+    gpu_memory_limit: "8GB"
+    cpu_limit: "8"
+    ram_limit: "32GB"
+    storage_limit: "1TB"
+
+  children:
+    edge_nodes:
+      hosts:
+        edge-[01:24]:
+          ansible_host: 10.0.1.[1:24]
+          ansible_user: ansible
+          ansible_become: true
+          
+          # Hardware configuration
+          node_type: jetson_orin_agx
+          gpu_enabled: true
+          cuda_version: "11.8"
+          l4t_version: "35.3.1"
+          
+          # Runtime configuration
+          container_runtime: nvidia
+          network_interface: eth0
+          storage_type: nvme
+          monitoring_interval: 15s
+      
+      vars:
+        node_role: edge_processing
+        deployment_priority: high
+        auto_recovery: true
+        health_check_interval: 30s
+
+    monitoring_nodes:
+      hosts:
+        monitor-[01:03]:
+          ansible_host: 10.0.2.[1:3]
+          ansible_user: ansible
+          ansible_become: true
+          
+          # Node configuration
+          node_type: monitoring
+          storage_type: ssd
+          retention_period: 90d
+          alert_enabled: true
+      
+      vars:
+        node_role: monitoring
+        deployment_priority: medium
+        metrics_retention: 30d
+        dashboard_enabled: true
