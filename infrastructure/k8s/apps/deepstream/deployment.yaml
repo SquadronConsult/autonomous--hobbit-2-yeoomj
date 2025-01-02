@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepstream
+  namespace: aams
+  labels:
+    app: deepstream
+    component: video-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deepstream
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: deepstream
+        component: video-analytics
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: deepstream
+        image: nvcr.io/nvidia/deepstream-l4t:6.2
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: "4"
+            memory: "8Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "8"
+            memory: "16Gi"
+            nvidia.com/gpu: "1"
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: rtsp
+          containerPort: 8554
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: deepstream-config
+        volumeMounts:
+        - name: models
+          mountPath: /opt/nvidia/deepstream/models
+          readOnly: true
+        - name: config
+          mountPath: /opt/nvidia/deepstream/config
+          readOnly: true
+        - name: output
+          mountPath: /var/lib/deepstream/output
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: deepstream-models-pvc
+      - name: config
+        configMap:
+          name: deepstream-config
+      - name: output
+        persistentVolumeClaim:
+          claimName: deepstream-output-pvc
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu
+                operator: Exists
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - deepstream
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      terminationGracePeriodSeconds: 30
