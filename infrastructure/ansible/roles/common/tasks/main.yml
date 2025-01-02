@@ -1,0 +1,191 @@
+---
+# Ansible tasks for configuring Jetson Orin edge devices
+# Version: 1.0.0
+# Ansible version compatibility: 2.15+
+# Last updated: 2024-02-20
+
+- name: Update package cache and upgrade system packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: full
+    cache_valid_time: 3600
+  become: true
+  tags: ['system', 'security']
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name: "{{ required_packages }}"
+    state: present
+    install_recommends: false
+  become: true
+  tags: ['system', 'packages']
+
+- name: Configure system timezone
+  ansible.builtin.timezone:
+    name: "{{ system_timezone }}"
+  become: true
+  tags: ['system']
+
+- name: Configure system locale
+  ansible.builtin.locale_gen:
+    name: "{{ system_locale }}"
+    state: present
+  become: true
+  tags: ['system']
+
+- name: Configure NVIDIA driver repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/arm64/ /"
+    state: present
+    filename: nvidia-cuda
+  become: true
+  tags: ['nvidia']
+
+- name: Install NVIDIA drivers and toolkit
+  ansible.builtin.apt:
+    name: 
+      - "nvidia-driver-{{ nvidia_driver_version }}"
+      - nvidia-container-toolkit
+      - nvidia-docker2
+    state: present
+  become: true
+  tags: ['nvidia']
+
+- name: Configure system security limits
+  ansible.builtin.pam_limits:
+    domain: '*'
+    limit_type: "{{ item.type }}"
+    limit_item: "{{ item.item }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { type: 'soft', item: 'nofile', value: "{{ security_limits.nofile_soft }}" }
+    - { type: 'hard', item: 'nofile', value: "{{ security_limits.nofile_hard }}" }
+    - { type: 'soft', item: 'nproc', value: "{{ security_limits.nproc_soft }}" }
+    - { type: 'hard', item: 'nproc', value: "{{ security_limits.nproc_hard }}" }
+  become: true
+  tags: ['system', 'security']
+
+- name: Configure AppArmor
+  ansible.builtin.service:
+    name: apparmor
+    state: started
+    enabled: yes
+  become: true
+  tags: ['security']
+
+- name: Configure audit rules
+  ansible.builtin.template:
+    src: audit.rules.j2
+    dest: /etc/audit/rules.d/audit.rules
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  notify: restart auditd
+  tags: ['security', 'audit']
+
+- name: Configure UFW firewall
+  ansible.builtin.ufw:
+    state: enabled
+    policy: deny
+    rule: allow
+    port: "{{ item }}"
+  with_items:
+    - "22"                     # SSH
+    - "8000"                   # DeepStream
+    - "9090"                   # ROS 2
+    - "6379"                   # Redis
+    - "5432"                   # TimescaleDB
+    - "9000"                   # MinIO
+  become: true
+  tags: ['security', 'firewall']
+
+- name: Configure fail2ban
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart fail2ban
+  tags: ['security']
+
+- name: Enable and start required services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items: "{{ system_services }}"
+  become: true
+  tags: ['services']
+
+- name: Configure NVIDIA container runtime
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart docker
+  tags: ['nvidia', 'docker']
+
+- name: Create required directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  with_items:
+    - /etc/ros/security
+    - /opt/nvidia/deepstream/models
+    - /etc/cyclonedds
+  become: true
+  tags: ['system', 'directories']
+
+- name: Deploy ROS 2 security configuration
+  ansible.builtin.template:
+    src: ros_security.yaml.j2
+    dest: /etc/ros/security/security.yaml
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  tags: ['ros2', 'security']
+
+- name: Deploy CycloneDDS configuration
+  ansible.builtin.template:
+    src: cyclonedds.xml.j2
+    dest: /etc/cyclonedds/config.xml
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  tags: ['ros2', 'dds']
+
+- name: Configure system monitoring
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart node_exporter
+  tags: ['monitoring']
+
+- name: Configure kernel parameters
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-agricultural-system.conf
+  with_items:
+    - { key: 'vm.swappiness', value: '10' }
+    - { key: 'net.core.somaxconn', value: '65535' }
+    - { key: 'net.ipv4.tcp_max_syn_backlog', value: '65535' }
+    - { key: 'net.ipv4.tcp_syncookies', value: '1' }
+  become: true
+  tags: ['system', 'kernel']
