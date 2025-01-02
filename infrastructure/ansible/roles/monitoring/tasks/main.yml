@@ -1,0 +1,176 @@
+---
+- name: Create monitoring namespace
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', 'infrastructure/k8s/base/namespace.yaml') | from_yaml }}"
+  tags: ['monitoring', 'namespace']
+
+- name: Install monitoring prerequisites
+  block:
+    - name: Install node exporter
+      package:
+        name: prometheus-node-exporter
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Create monitoring directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0750'
+        owner: 65534
+        group: 65534
+      loop:
+        - /etc/prometheus
+        - /var/lib/prometheus
+        - /etc/grafana
+        - /var/lib/grafana
+        - /etc/jaeger
+  tags: ['monitoring', 'prerequisites']
+
+- name: Deploy Prometheus
+  block:
+    - name: Create Prometheus ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/prometheus/configmap.yaml') | from_yaml }}"
+
+    - name: Deploy Prometheus
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/prometheus/deployment.yaml') | from_yaml }}"
+
+    - name: Create Prometheus Service
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/prometheus/service.yaml') | from_yaml }}"
+  tags: ['monitoring', 'prometheus']
+
+- name: Deploy Grafana
+  block:
+    - name: Create Grafana ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/grafana/configmap.yaml') | from_yaml }}"
+
+    - name: Generate Grafana admin password
+      set_fact:
+        grafana_admin_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+
+    - name: Create Grafana secrets
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-secrets
+            namespace: agricultural-system
+          type: Opaque
+          data:
+            admin-password: "{{ grafana_admin_password | b64encode }}"
+
+    - name: Deploy Grafana
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/grafana/deployment.yaml') | from_yaml }}"
+  tags: ['monitoring', 'grafana']
+
+- name: Deploy Jaeger
+  block:
+    - name: Create Jaeger sampling config
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: jaeger-sampling-config
+            namespace: agricultural-system
+          data:
+            sampling.json: |
+              {
+                "default_strategy": {
+                  "type": "probabilistic",
+                  "param": 1.0
+                },
+                "service_strategies": [
+                  {
+                    "service": "deepstream",
+                    "type": "probabilistic",
+                    "param": 1.0
+                  },
+                  {
+                    "service": "tao-toolkit",
+                    "type": "probabilistic",
+                    "param": 1.0
+                  }
+                ]
+              }
+
+    - name: Deploy Jaeger
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'infrastructure/k8s/monitoring/jaeger/deployment.yaml') | from_yaml }}"
+  tags: ['monitoring', 'jaeger']
+
+- name: Configure monitoring integration
+  block:
+    - name: Wait for Prometheus deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: prometheus
+        namespace: agricultural-system
+      register: prometheus_deployment
+      until: prometheus_deployment.resources[0].status.readyReplicas is defined and prometheus_deployment.resources[0].status.readyReplicas > 0
+      retries: 12
+      delay: 10
+
+    - name: Wait for Grafana deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: grafana
+        namespace: agricultural-system
+      register: grafana_deployment
+      until: grafana_deployment.resources[0].status.readyReplicas is defined and grafana_deployment.resources[0].status.readyReplicas > 0
+      retries: 12
+      delay: 10
+
+    - name: Wait for Jaeger deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: jaeger
+        namespace: agricultural-system
+      register: jaeger_deployment
+      until: jaeger_deployment.resources[0].status.readyReplicas is defined and jaeger_deployment.resources[0].status.readyReplicas > 0
+      retries: 12
+      delay: 10
+
+    - name: Verify monitoring stack health
+      uri:
+        url: "http://{{ item.service }}:{{ item.port }}{{ item.path }}"
+        method: GET
+        status_code: 200
+      register: health_check
+      until: health_check is success
+      retries: 6
+      delay: 10
+      loop:
+        - { service: 'prometheus', port: '9090', path: '/-/healthy' }
+        - { service: 'grafana', port: '3000', path: '/api/health' }
+        - { service: 'jaeger', port: '14268', path: '/' }
+  tags: ['monitoring', 'integration']
+
+- name: Export monitoring status
+  set_fact:
+    monitoring_status:
+      prometheus_status: "{{ prometheus_deployment.resources[0].status if prometheus_deployment is defined else 'Unknown' }}"
+      grafana_status: "{{ grafana_deployment.resources[0].status if grafana_deployment is defined else 'Unknown' }}"
+      jaeger_status: "{{ jaeger_deployment.resources[0].status if jaeger_deployment is defined else 'Unknown' }}"
+      ha_status: "Configured"
+      resource_metrics: "Enabled"
+      system_health: "{{ health_check.results | map(attribute='status') | list if health_check is defined else [] }}"
+  tags: ['monitoring', 'status']
