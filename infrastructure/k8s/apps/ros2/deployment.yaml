@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros2-controller
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: ros2-controller
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: fleet-control
+    app.kubernetes.io/version: jazzy
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9090'
+    prometheus.io/path: '/metrics'
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ros2-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ros2-controller
+        app.kubernetes.io/component: fleet-control
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: ros2
+        # ROS 2 JAZZY base image - version iron
+        image: ros:jazzy-ros-base
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        ports:
+        - containerPort: 9090
+          name: ros2
+        - containerPort: 7400
+          name: dds-discovery
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4" 
+            memory: "8Gi"
+        env:
+        - name: ROS_DOMAIN_ID
+          valueFrom:
+            configMapKeyRef:
+              name: ros2-config
+              key: domain
+        - name: ROS_DISCOVERY_SERVER
+          value: "ros2-controller:7400"
+        - name: RMW_IMPLEMENTATION
+          value: "rmw_fastrtps_cpp"
+        - name: FASTRTPS_DEFAULT_PROFILES_FILE
+          value: "/opt/ros2_ws/config/dds_profile.xml"
+        - name: ROS_NAMESPACE
+          value: "/aams"
+        - name: ROS_SECURITY_ENABLE
+          value: "true"
+        - name: ROS_SECURITY_STRATEGY
+          value: "Enforce"
+        - name: ROS_SECURITY_KEYSTORE
+          value: "/etc/ros/security"
+        volumeMounts:
+        - name: ros2-config-volume
+          mountPath: /opt/ros2_ws/config
+          readOnly: true
+        - name: ros2-logs
+          mountPath: /opt/ros2_ws/logs
+        - name: ros-security
+          mountPath: /etc/ros/security
+          readOnly: true
+        livenessProbe:
+          tcpSocket:
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 9090
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          tcpSocket:
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: ros2-config-volume
+        configMap:
+          name: ros2-config
+          items:
+          - key: dds_config
+            path: dds_profile.xml
+          - key: qos
+            path: qos_profiles.yaml
+      - name: ros2-logs
+        emptyDir: {}
+      - name: ros-security
+        secret:
+          secretName: ros2-security-keys
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: ros2-controller
+              topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: ros2-controller
