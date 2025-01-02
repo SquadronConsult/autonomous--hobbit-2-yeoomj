@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: agricultural-system
+  labels:
+    app: prometheus
+    component: monitoring
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/version: v2.45.0
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: http-metrics
+  type: ClusterIP
+  sessionAffinity: None
+  publishNotReadyAddresses: false
