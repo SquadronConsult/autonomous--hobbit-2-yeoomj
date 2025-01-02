@@ -1,0 +1,78 @@
+# Requires review from project maintainers for any changes
+* @project-maintainers
+
+# DeepStream video analytics and ML pipeline components
+src/backend/src/deepstream/** @vision-team @ml-engineers
+
+# TAO Toolkit model training and inference components
+src/backend/src/tao/** @ml-engineers
+
+# ROS 2 robotics control and navigation components
+src/backend/src/ros2/** @robotics-team
+
+# Gazebo simulation environment and plugins
+src/backend/src/gazebo/** @robotics-team @simulation-engineers
+
+# Backend service implementations
+src/backend/src/services/** @backend-team
+
+# Web dashboard and UI components
+src/web/** @frontend-team
+
+# Infrastructure configuration and deployment
+infrastructure/** @devops-team
+
+# CI/CD pipeline configurations
+.github/workflows/** @devops-team @security-team
+
+# Backend configuration files
+src/backend/src/config/** @backend-team @security-team
+
+# Security implementation file
+src/backend/src/security.ts @security-team
+
+# Security policy documentation
+SECURITY.md @security-team
+
+# Contributing guidelines
+CONTRIBUTING.md @project-maintainers
+
+# Core configuration files
+package.json @backend-team @devops-team
+tsconfig.json @backend-team @devops-team
+jest.config.ts @backend-team @devops-team
+
+# Database and storage components
+src/backend/src/database/** @backend-team @devops-team
+
+# API and endpoint definitions
+src/backend/src/api/** @backend-team @security-team
+
+# Monitoring and telemetry components
+src/backend/src/monitoring/** @devops-team @backend-team
+
+# Documentation files
+docs/** @project-maintainers @technical-writers
+
+# Test configurations and suites
+tests/** @backend-team @qa-team
+src/web/tests/** @frontend-team @qa-team
+
+# Environment configurations
+.env* @devops-team @security-team
+
+# Container definitions
+Dockerfile* @devops-team
+docker-compose*.yml @devops-team
+
+# Kubernetes manifests
+k8s/** @devops-team @security-team
+
+# Scripts and tools
+scripts/** @devops-team @backend-team
+
+# Asset files
+src/web/src/assets/** @frontend-team @design-team
+
+# Shared utilities and libraries
+src/shared/** @backend-team @frontend-team
