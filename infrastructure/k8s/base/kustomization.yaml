@@ -1,0 +1,119 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base configuration metadata
+metadata:
+  name: agricultural-system-base
+  annotations:
+    maintainer: "DevOps Team"
+    description: "Base configuration for agricultural management system"
+    security.policy/version: "v1.0"
+    backup.policy/retention: "30d"
+
+# Core resources to be included
+resources:
+  - namespace.yaml
+  - storage-class.yaml
+  - configmaps.yaml
+  - secrets.yaml
+  - network-policies.yaml
+  - resource-quotas.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: agricultural-system
+  app.kubernetes.io/part-of: autonomous-agricultural-management
+  environment: base
+  security.policy/enforced: "true"
+  monitoring.enabled: "true"
+
+# Common annotations applied to all resources
+commonAnnotations:
+  maintainer: "DevOps Team"
+  description: "Base configuration for agricultural management system"
+  security.scan/last-updated: "2024-02-20"
+  config.validation/enabled: "true"
+
+# ConfigMap generators with enhanced security and validation
+configMapGenerator:
+  - name: system-config
+    files:
+      - configs/database.yaml
+      - configs/redis.yaml
+      - configs/minio.yaml
+      - configs/monitoring.yaml
+      - configs/network.yaml
+    options:
+      labels:
+        config.type: system
+        validation.required: "true"
+      annotations:
+        config.checksum/enabled: "true"
+        config.validation/schema: "strict"
+
+# Secret generators with rotation policies
+secretGenerator:
+  - name: system-secrets
+    files:
+      - secrets/database-credentials.yaml
+      - secrets/auth-secrets.yaml
+      - secrets/encryption-keys.yaml
+      - secrets/tls-certificates.yaml
+    options:
+      labels:
+        secret.type: system
+        rotation.required: "true"
+      annotations:
+        secret.rotation/interval: "30d"
+        secret.encryption/type: "aes-256-gcm"
+
+# Generator options for consistent naming and tracking
+generatorOptions:
+  disableNameSuffixHash: false
+  labels:
+    generated-by: kustomize
+    timestamp: "2024-02-20"
+  annotations:
+    kustomize.toolkit.fluxcd.io/reconcile: enabled
+    kustomize.toolkit.fluxcd.io/checksum: enabled
+
+# Resource transformers for enhanced security
+transformers:
+  - labels:
+      security.policy/version: "v1.0"
+  - annotations:
+      security.scan/timestamp: "2024-02-20"
+
+# Patches to enforce security policies
+patches:
+  - target:
+      kind: Deployment
+      labelSelector: "app.kubernetes.io/part-of=autonomous-agricultural-management"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 1000
+          fsGroup: 2000
+          seccompProfile:
+            type: RuntimeDefault
+
+# Validation configurations
+configurations:
+  - validation.yaml
+
+# Replicas configuration for HA
+replicas:
+  - name: agricultural-system
+    count: 3
+
+# Resource quotas and limits
+vars:
+  - name: NAMESPACE
+    objref:
+      kind: Namespace
+      name: agricultural-system
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name
