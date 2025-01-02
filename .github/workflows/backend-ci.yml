@@ -1,0 +1,155 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+env:
+  DOCKER_BUILDKIT: '1'
+  BUILDKIT_PROGRESS: 'plain'
+  NODE_ENV: 'test'
+  NODE_VERSION: '18.x'
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            src/backend/node_modules
+          key: npm-deps-${{ runner.os }}-${{ hashFiles('src/backend/package-lock.json') }}
+          restore-keys: |
+            npm-deps-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+        
+      - name: Type check
+        run: npm run build -- --noEmit
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./coverage/junit
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: src/backend/coverage
+          retention-days: 14
+
+      - name: Setup Docker BuildKit
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+          version: latest
+          driver-opts: image=moby/buildkit:latest
+
+      - name: Build Docker image
+        run: |
+          docker buildx create --use
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --tag agricultural-management-system-backend:${{ github.sha }} \
+            --file Dockerfile \
+            .
+
+  coverage_check:
+    name: Verify Coverage
+    needs: build_and_test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage
+
+      - name: Check coverage thresholds
+        run: |
+          COVERAGE_FILE="coverage/coverage-summary.json"
+          if [ ! -f "$COVERAGE_FILE" ]; then
+            echo "Coverage report not found!"
+            exit 1
+          fi
+          
+          BRANCHES=$(jq -r '.total.branches.pct' "$COVERAGE_FILE")
+          FUNCTIONS=$(jq -r '.total.functions.pct' "$COVERAGE_FILE")
+          LINES=$(jq -r '.total.lines.pct' "$COVERAGE_FILE")
+          STATEMENTS=$(jq -r '.total.statements.pct' "$COVERAGE_FILE")
+          
+          THRESHOLD=80
+          
+          if (( $(echo "$BRANCHES < $THRESHOLD" | bc -l) )) || \
+             (( $(echo "$FUNCTIONS < $THRESHOLD" | bc -l) )) || \
+             (( $(echo "$LINES < $THRESHOLD" | bc -l) )) || \
+             (( $(echo "$STATEMENTS < $THRESHOLD" | bc -l) )); then
+            echo "Coverage is below required threshold of $THRESHOLD%"
+            echo "Branches: $BRANCHES%"
+            echo "Functions: $FUNCTIONS%"
+            echo "Lines: $LINES%"
+            echo "Statements: $STATEMENTS%"
+            exit 1
+          fi
+          
+          echo "Coverage thresholds met!"
+          echo "Branches: $BRANCHES%"
+          echo "Functions: $FUNCTIONS%"
+          echo "Lines: $LINES%"
+          echo "Statements: $STATEMENTS%"
+
+      - name: Generate coverage badge
+        uses: actions/github-script@v6
+        if: github.ref == 'refs/heads/main'
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const totalCoverage = coverage.total.statements.pct;
+            
+            const badgeColor = totalCoverage >= 90 ? 'brightgreen' : 
+                             totalCoverage >= 80 ? 'green' : 
+                             totalCoverage >= 70 ? 'yellow' : 'red';
+            
+            const badgeJson = {
+              schemaVersion: 1,
+              label: 'coverage',
+              message: `${totalCoverage}%`,
+              color: badgeColor
+            };
+            
+            fs.writeFileSync('coverage/badge.json', JSON.stringify(badgeJson));
