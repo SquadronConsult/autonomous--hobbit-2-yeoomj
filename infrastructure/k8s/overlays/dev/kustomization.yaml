@@ -1,0 +1,107 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Development environment overlay metadata
+metadata:
+  name: agricultural-system-dev
+  annotations:
+    maintainer: "DevOps Team"
+    environment.agricultural-system.io/name: "development"
+    environment.agricultural-system.io/type: "edge"
+
+# Reference base configuration
+bases:
+  - ../../base
+
+# Development environment resources
+resources:
+  - ../../apps/backend/deployment.yaml
+  - ../../apps/backend/service.yaml
+  - ../../apps/deepstream/deployment.yaml
+  - ../../apps/deepstream/service.yaml
+  - ../../apps/ros2/deployment.yaml
+  - ../../apps/ros2/service.yaml
+  - ../../apps/tao/deployment.yaml
+  - ../../apps/tao/service.yaml
+  - ../../apps/gazebo/deployment.yaml
+  - ../../apps/gazebo/service.yaml
+  - ../../apps/timescaledb/statefulset.yaml
+  - ../../apps/timescaledb/service.yaml
+  - ../../apps/minio/statefulset.yaml
+  - ../../apps/minio/service.yaml
+  - ../../apps/redis/statefulset.yaml
+  - ../../apps/redis/service.yaml
+
+# Development namespace
+namespace: agricultural-system-dev
+
+# Development environment labels
+commonLabels:
+  app.kubernetes.io/name: agricultural-system
+  app.kubernetes.io/part-of: autonomous-agricultural-management
+  environment: development
+
+# Development environment annotations
+commonAnnotations:
+  maintainer: "DevOps Team"
+  environment.agricultural-system.io/name: "development"
+  environment.agricultural-system.io/type: "edge"
+
+# Development resource patches
+patchesStrategicMerge:
+  - patches/backend-resources.yaml
+  - patches/deepstream-resources.yaml
+  - patches/ros2-resources.yaml
+
+# Development ConfigMap generators
+configMapGenerator:
+  - name: system-config-dev
+    behavior: merge
+    files:
+      - configs/database-dev.yaml
+      - configs/redis-dev.yaml
+      - configs/minio-dev.yaml
+
+# Development Secret generators
+secretGenerator:
+  - name: system-secrets-dev
+    behavior: merge
+    files:
+      - secrets/database-credentials-dev.yaml
+      - secrets/auth-secrets-dev.yaml
+      - secrets/encryption-keys-dev.yaml
+
+# Development container images
+images:
+  - name: agricultural-system/backend
+    newTag: dev
+  - name: agricultural-system/deepstream
+    newTag: dev
+  - name: agricultural-system/ros2
+    newTag: dev
+
+# Resource transformers for development environment
+transformers:
+  - labels:
+      environment: development
+  - annotations:
+      environment.agricultural-system.io/profile: development
+
+# Development environment replicas configuration
+replicas:
+  - name: agricultural-system
+    count: 1
+
+# Development environment resource quotas
+vars:
+  - name: NAMESPACE
+    objref:
+      kind: Namespace
+      name: agricultural-system-dev
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name
+
+# Development environment configurations
+configurations:
+  - validation-dev.yaml
