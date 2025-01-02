@@ -1,0 +1,26 @@
+{
+  "watch": [
+    "src/**/*.ts",
+    "src/**/*.json"
+  ],
+  "ignore": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts", 
+    "tests/**/*",
+    "dist/**/*",
+    "node_modules/**/*",
+    ".git/**/*"
+  ],
+  "ext": "ts,json",
+  "exec": "ts-node ./src/server.ts",
+  "env": {
+    "NODE_ENV": "development",
+    "TS_NODE_PROJECT": "./tsconfig.json"
+  },
+  "events": {
+    "restart": "pino-pretty --colorize 'App restarted due to changes'"
+  },
+  "delay": "1000",
+  "verbose": true,
+  "legacyWatch": false
+}
