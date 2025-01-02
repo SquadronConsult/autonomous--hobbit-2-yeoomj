@@ -1,0 +1,178 @@
+---
+# Ansible playbook for setting up Jetson Orin edge devices
+# Version: 1.0.0
+# Last updated: 2024-02-20
+# Requires: Ansible 2.15+
+
+- name: Setup Edge Device
+  hosts: edge_nodes
+  become: true
+  vars:
+    # Core system versions
+    docker_version: "23.0.1"
+    kubernetes_version: "1.26"
+    container_runtime: "containerd"
+    nvidia_container_runtime_version: "3.13.0"
+    nvidia_driver_version: "525.105.17"
+    cuda_version: "11.8"
+    system_timezone: "UTC"
+    monitoring_namespace: "agricultural-system"
+    backup_retention_days: "30"
+    max_gpu_memory_per_container: "8Gi"
+    health_check_interval: "30s"
+
+    # System requirements
+    required_packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - python3-pip
+      - fail2ban
+      - ufw
+      - apparmor
+      - auditd
+
+    # Security limits
+    security_limits:
+      nofile_soft: 65536
+      nofile_hard: 65536
+      nproc_soft: 32768
+      nproc_hard: 32768
+
+    # System services
+    system_services:
+      - ufw
+      - fail2ban
+      - apparmor
+      - auditd
+
+  pre_tasks:
+    - name: Validate system requirements
+      block:
+        - name: Check hardware compatibility
+          ansible.builtin.command: nvidia-smi
+          changed_when: false
+          register: nvidia_smi_check
+
+        - name: Verify minimum memory
+          ansible.builtin.command: free -g
+          changed_when: false
+          register: memory_check
+
+        - name: Check disk space
+          ansible.builtin.command: df -h /
+          changed_when: false
+          register: disk_check
+      tags: ['validate', 'pre-flight']
+
+  roles:
+    # Common system configuration
+    - role: common
+      tags: ['common', 'setup', 'security']
+      vars:
+        system_locale: "en_US.UTF-8"
+
+    # Docker installation and configuration
+    - role: docker
+      tags: ['docker', 'container-runtime', 'gpu']
+      vars:
+        docker_compose_version: "2.17.2"
+        docker_daemon_config:
+          default-runtime: "nvidia"
+          runtimes:
+            nvidia:
+              path: "/usr/bin/nvidia-container-runtime"
+          log-driver: "json-file"
+          log-opts:
+            max-size: "100m"
+            max-file: "3"
+          metrics-addr: "0.0.0.0:9323"
+          experimental: true
+
+    # Kubernetes setup
+    - role: kubernetes
+      tags: ['kubernetes', 'orchestration', 'gpu']
+      vars:
+        k8s_version: "1.26"
+        pod_network_cidr: "192.168.0.0/16"
+        service_cidr: "10.96.0.0/12"
+        dns_domain: "cluster.local"
+        
+    # Monitoring stack deployment
+    - role: monitoring
+      tags: ['monitoring', 'observability']
+      vars:
+        prometheus_retention: "15d"
+        grafana_admin_user: "admin"
+        monitoring_config:
+          prometheus:
+            scrape_interval: "15s"
+            evaluation_interval: "15s"
+          grafana:
+            plugins:
+              - grafana-piechart-panel
+              - grafana-worldmap-panel
+
+  post_tasks:
+    - name: Verify system health
+      block:
+        - name: Check container runtime
+          ansible.builtin.command: docker info
+          changed_when: false
+          register: docker_status
+
+        - name: Verify Kubernetes cluster
+          ansible.builtin.command: kubectl get nodes
+          changed_when: false
+          register: k8s_status
+          when: "'master' in group_names"
+
+        - name: Check monitoring stack
+          ansible.builtin.uri:
+            url: "http://{{ item.service }}:{{ item.port }}{{ item.path }}"
+            return_content: yes
+          register: monitoring_status
+          loop:
+            - { service: 'prometheus', port: '9090', path: '/-/healthy' }
+            - { service: 'grafana', port: '3000', path: '/api/health' }
+            - { service: 'jaeger', port: '14268', path: '/' }
+      tags: ['verify', 'health-check']
+
+    - name: Configure monitoring alerts
+      block:
+        - name: Deploy alert rules
+          kubernetes.core.k8s:
+            state: present
+            definition: "{{ lookup('template', 'templates/alert-rules.yml.j2') | from_yaml }}"
+          when: "'master' in group_names"
+
+        - name: Configure notification channels
+          kubernetes.core.k8s:
+            state: present
+            definition: "{{ lookup('template', 'templates/notification-channels.yml.j2') | from_yaml }}"
+          when: "'master' in group_names"
+      tags: ['monitoring', 'alerts']
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+
+    - name: restart kubelet
+      ansible.builtin.service:
+        name: kubelet
+        state: restarted
+
+    - name: restart node_exporter
+      ansible.builtin.service:
+        name: node_exporter
+        state: restarted
