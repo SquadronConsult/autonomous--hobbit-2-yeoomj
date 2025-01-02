@@ -1,0 +1,84 @@
+# Database, Cache and Storage Configuration ConfigMaps
+# Version compatibility:
+# - TimescaleDB: 2.11
+# - Redis: 7.0
+# - MinIO: RELEASE.2023-07-07
+# - DeepStream: 6.2
+# - ROS 2: JAZZY
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-config
+  namespace: aams
+data:
+  TIMESCALE_HOST: "timescaledb.aams.svc.cluster.local"
+  TIMESCALE_PORT: "5432"
+  TIMESCALE_DATABASE: "aams_timeseries"
+  TIMESCALE_MAX_CONNECTIONS: "100"
+  TIMESCALE_STATEMENT_TIMEOUT: "30000"
+  TIMESCALE_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: "60000"
+  TIMESCALE_CHUNK_TIME_INTERVAL: "1 day"
+  TIMESCALE_RETENTION_POLICY: "90 days"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: aams
+data:
+  REDIS_HOST: "redis.aams.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_TTL: "900" # 15 minutes in seconds
+  REDIS_MAX_MEMORY: "4gb"
+  REDIS_MAX_MEMORY_POLICY: "allkeys-lru"
+  REDIS_MAXCLIENTS: "10000"
+  REDIS_TIMEOUT: "300"
+  REDIS_TCP_KEEPALIVE: "60"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-config
+  namespace: aams
+data:
+  MINIO_ENDPOINT: "minio.aams.svc.cluster.local"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "true"
+  MINIO_REGION: "us-east-1"
+  MINIO_BROWSER: "on"
+  MINIO_RETENTION_MODE: "compliance"
+  MINIO_RETENTION_PERIOD: "365d"
+  MINIO_COMPRESSION: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deepstream-config
+  namespace: aams
+data:
+  DEEPSTREAM_GPU_ID: "0"
+  DEEPSTREAM_BATCH_SIZE: "8"
+  DEEPSTREAM_STREAMING_PORT: "8000"
+  DEEPSTREAM_MODEL_PATH: "/opt/nvidia/deepstream/models"
+  DEEPSTREAM_MAX_PROCESSING_WIDTH: "1920"
+  DEEPSTREAM_MAX_PROCESSING_HEIGHT: "1080"
+  DEEPSTREAM_PROCESSING_MODE: "primary"
+  DEEPSTREAM_INFERENCE_PRECISION: "fp16"
+  DEEPSTREAM_ENABLE_PERF_MEASUREMENT: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ros2-config
+  namespace: aams
+data:
+  ROS_DOMAIN_ID: "42"
+  ROS_NAMESPACE: "/aams"
+  ROS_DISCOVERY_SERVER: "fastdds"
+  ROS_QOS_OVERRIDE: "/aams/*:reliability=best_effort"
+  ROS_LOCALHOST_ONLY: "0"
+  ROS_SECURITY_ENABLE: "true"
+  ROS_SECURITY_STRATEGY: "Enforce"
+  ROS_SECURITY_KEYSTORE: "/etc/ros/security"
+  CYCLONE_DDS_URI: "file:///etc/cyclonedds/config.xml"
