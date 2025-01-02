@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    kubernetes.io/description: "High-performance persistent storage for Redis caching layer"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-local-storage
+  resources:
+    requests:
+      storage: 50Gi
+  volumeMode: Filesystem
+  selector:
+    matchLabels:
+      storage.kubernetes.io/type: nvme
