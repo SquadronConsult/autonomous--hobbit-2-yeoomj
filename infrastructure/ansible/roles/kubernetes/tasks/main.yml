@@ -1,0 +1,213 @@
+---
+# Kubernetes Installation and Configuration Tasks for Jetson Orin
+# Version: 1.0.0
+# Ansible Version: 2.15+
+# Last Updated: 2024-02-20
+
+- name: Include common tasks
+  ansible.builtin.include_role:
+    name: common
+  tags: ['common', 'prerequisites']
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    filename: kubernetes
+  become: true
+  tags: ['kubernetes', 'install']
+
+- name: Install Kubernetes packages
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ kubernetes_version }}-00"
+      - "kubeadm={{ kubernetes_version }}-00"
+      - "kubectl={{ kubernetes_version }}-00"
+    state: present
+    update_cache: yes
+    install_recommends: false
+  become: true
+  tags: ['kubernetes', 'install']
+
+- name: Configure containerd
+  ansible.builtin.template:
+    src: containerd-config.toml.j2
+    dest: /etc/containerd/config.toml
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart containerd
+  tags: ['kubernetes', 'container-runtime']
+
+- name: Configure NVIDIA container runtime
+  ansible.builtin.template:
+    src: nvidia-container-runtime.json.j2
+    dest: /etc/nvidia-container-runtime/config.toml
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart containerd
+  tags: ['kubernetes', 'nvidia']
+
+- name: Configure kernel modules for Kubernetes
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - br_netfilter
+    - overlay
+  become: true
+  tags: ['kubernetes', 'system']
+
+- name: Configure sysctl parameters for Kubernetes
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+  with_items:
+    - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { key: 'net.ipv4.ip_forward', value: '1' }
+  become: true
+  tags: ['kubernetes', 'system']
+
+- name: Initialize Kubernetes cluster
+  ansible.builtin.command:
+    cmd: >
+      kubeadm init
+      --pod-network-cidr=192.168.0.0/16
+      --cri-socket=unix:///run/containerd/containerd.sock
+      --control-plane-endpoint={{ ansible_default_ipv4.address }}
+      --apiserver-cert-extra-sans={{ ansible_default_ipv4.address }}
+      --node-name={{ inventory_hostname }}
+      --skip-phases=addon/kube-proxy
+  become: true
+  register: kubeadm_init
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'init']
+
+- name: Create .kube directory
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0755'
+  become: false
+  tags: ['kubernetes', 'config']
+
+- name: Copy kubeconfig file
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+    remote_src: yes
+    mode: '0600'
+  become: true
+  tags: ['kubernetes', 'config']
+
+- name: Install Calico CNI
+  community.kubernetes.k8s:
+    state: present
+    src: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'network']
+
+- name: Deploy NVIDIA device plugin
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: nvidia-device-plugin-daemonset
+        namespace: kube-system
+      spec:
+        selector:
+          matchLabels:
+            name: nvidia-device-plugin-ds
+        template:
+          metadata:
+            labels:
+              name: nvidia-device-plugin-ds
+          spec:
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+            containers:
+              - name: nvidia-device-plugin-ctr
+                image: nvcr.io/nvidia/k8s-device-plugin:v0.14.1
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                  - name: device-plugin
+                    mountPath: /var/lib/kubelet/device-plugins
+            volumes:
+              - name: device-plugin
+                hostPath:
+                  path: /var/lib/kubelet/device-plugins
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'nvidia']
+
+- name: Configure RBAC policies
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'rbac-config.yaml.j2') | from_yaml }}"
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'security']
+
+- name: Configure audit logging
+  ansible.builtin.template:
+    src: audit-policy.yaml.j2
+    dest: /etc/kubernetes/audit-policy.yaml
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  notify: restart kubelet
+  tags: ['kubernetes', 'security']
+
+- name: Configure resource quotas
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'resource-quotas.yaml.j2') | from_yaml }}"
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'resources']
+
+- name: Deploy monitoring stack
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'monitoring-stack.yaml.j2') | from_yaml }}"
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'monitoring']
+
+- name: Configure backup procedures
+  ansible.builtin.cron:
+    name: "Kubernetes etcd backup"
+    minute: "0"
+    hour: "*/6"
+    job: "/usr/local/bin/etcd-backup.sh"
+  become: true
+  tags: ['kubernetes', 'backup']
+
+- name: Verify cluster health
+  ansible.builtin.command:
+    cmd: kubectl get nodes
+  register: cluster_health
+  changed_when: false
+  when: inventory_hostname in groups['master']
+  tags: ['kubernetes', 'verify']
+
+handlers:
+  - name: restart containerd
+    ansible.builtin.service:
+      name: containerd
+      state: restarted
+    become: true
+
+  - name: restart kubelet
+    ansible.builtin.service:
+      name: kubelet
+      state: restarted
+    become: true
