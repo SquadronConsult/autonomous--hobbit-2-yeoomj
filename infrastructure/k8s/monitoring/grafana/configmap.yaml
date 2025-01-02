@@ -1,0 +1,178 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: agricultural-system
+  labels:
+    app: grafana
+    component: monitoring
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: monitoring
+data:
+  grafana.ini: |
+    [server]
+    http_port = 3000
+    domain = grafana.agricultural-system.svc.cluster.local
+    root_url = %(protocol)s://%(domain)s:%(http_port)s/
+    serve_from_sub_path = true
+
+    [security]
+    admin_user = ${GRAFANA_ADMIN_USER}
+    admin_password = ${GRAFANA_ADMIN_PASSWORD}
+    allow_embedding = false
+    cookie_secure = true
+    cookie_samesite = strict
+    disable_gravatar = true
+    strict_transport_security = true
+
+    [auth]
+    disable_login_form = false
+    oauth_auto_login = false
+    disable_signout_menu = false
+
+    [auth.anonymous]
+    enabled = false
+
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+
+    [dashboards]
+    default_home_dashboard_path = /etc/grafana/dashboards/system-overview.json
+    versions_to_keep = 20
+    min_refresh_interval = 15s
+
+    [unified_alerting]
+    enabled = true
+    execute_alerts = true
+    evaluation_timeout = 30s
+    max_attempts = 3
+
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        version: 1
+        editable: false
+        jsonData:
+          timeInterval: "15s"
+          queryTimeout: "30s"
+          httpMethod: "POST"
+          exemplarTraceIdDestinations:
+            - name: trace_id
+              datasourceUid: jaeger
+          prometheusType: Prometheus
+          prometheusVersion: "2.40.0"
+          cacheLevel: "High"
+          disableRecordingRules: false
+          incrementalQueryOverlapWindow: "10m"
+        secureJsonData:
+          httpHeaderValue1: "${PROMETHEUS_API_TOKEN}"
+
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: System Dashboards
+        type: file
+        folder: System
+        allowUiUpdates: false
+        updateIntervalSeconds: 60
+        options:
+          path: /etc/grafana/dashboards
+          foldersFromFilesStructure: true
+
+  dashboard-definitions/system-overview.json: |
+    {
+      "title": "Agricultural System Overview",
+      "uid": "agricultural-system-overview",
+      "refresh": "15s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "title": "Video Processing Latency",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(deepstream_video_processing_latency_seconds_sum[5m]) / rate(deepstream_video_processing_latency_seconds_count[5m])",
+              "legendFormat": "Avg Latency"
+            }
+          ],
+          "thresholds": [
+            {
+              "value": 0.1,
+              "colorMode": "critical",
+              "op": "gt",
+              "fill": true,
+              "line": true
+            }
+          ]
+        },
+        {
+          "title": "Active Drone Feeds",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "count(ros2_drone_status{status='active'})",
+              "legendFormat": "Active Drones"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 4, "color": "yellow" },
+              { "value": 8, "color": "green" }
+            ]
+          }
+        },
+        {
+          "title": "Pest Detection Accuracy",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "tao_model_inference_accuracy{model='pest_detection'} * 100",
+              "legendFormat": "Detection Accuracy"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 90, "color": "yellow" },
+              { "value": 95, "color": "green" }
+            ]
+          }
+        },
+        {
+          "title": "Resource Utilization",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "container_memory_usage_bytes{container=~'deepstream|tao-toolkit'} / (1024*1024*1024)",
+              "legendFormat": "{{container}} Memory (GB)"
+            },
+            {
+              "expr": "nvidia_gpu_memory_used_bytes{container=~'deepstream|tao-toolkit'} / (1024*1024*1024)",
+              "legendFormat": "{{container}} GPU Memory (GB)"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 12, "color": "yellow" },
+              { "value": 14, "color": "red" }
+            ]
+          }
+        }
+      ]
+    }
