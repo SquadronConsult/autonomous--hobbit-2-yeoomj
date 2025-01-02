@@ -1,0 +1,113 @@
+CONTAINERIZED AUTONOMOUS AGRICULTURAL MANAGEMENT SYSTEM LICENSE
+Version 1.0.0, 2024
+
+Copyright (c) 2024 Agricultural Management System Development Team
+All rights reserved.
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. DEFINITIONS
+   "License" shall mean the terms and conditions for use, reproduction, and distribution as defined in this document.
+   "Licensor" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.
+   "You" (or "Your") shall mean an individual or Legal Entity exercising permissions granted by this License.
+   "System" shall mean the Containerized Autonomous Agricultural Management System software and associated components.
+   "AI/ML Components" shall mean artificial intelligence and machine learning models, training data, and inference systems.
+
+2. GRANT OF LICENSE
+Subject to the terms and conditions of this License, Licensor hereby grants You a non-exclusive, non-transferable, worldwide license to use the System under the following conditions:
+
+2.1. PERMITTED USES
+   a) Deploy the System on licensed hardware configurations
+   b) Modify the System for authorized agricultural operations
+   c) Integrate the System with approved third-party components
+   d) Collect and process operational data in compliance with regulations
+   e) Create and maintain backups of the System
+
+2.2. AI/ML SPECIFIC PROVISIONS
+   a) Model Usage:
+      - Limited to licensed deployment environments
+      - Inference restricted to production agricultural applications
+      - No redistribution of pre-trained models
+   
+   b) Training Rights:
+      - Model training permitted on authorized instances only
+      - Training data must be securely maintained
+      - Derivative models subject to original license terms
+
+   c) Inference Restrictions:
+      - Real-time processing limited to licensed operations
+      - Results usage confined to authorized purposes
+      - Performance optimization within approved parameters
+
+3. DEPLOYMENT RESTRICTIONS
+3.1. Edge Deployment:
+   - Restricted to NVIDIA Jetson Orin hardware platforms
+   - Containerization requirements must be maintained
+   - Security protocols must be implemented as specified
+
+3.2. Cloud Integration:
+   - Limited to approved service providers
+   - Data residency requirements must be observed
+   - Compliance with agricultural data protection standards
+
+4. DATA PROTECTION AND PRIVACY
+4.1. Compliance Requirements:
+   - GDPR and CCPA compliance mandatory where applicable
+   - Agricultural data protection regulations must be observed
+   - Data collection limited to operational requirements
+
+4.2. Data Handling:
+   - Secure storage and transmission required
+   - Processing restricted to authorized purposes
+   - Retention policies must align with local regulations
+
+5. INTELLECTUAL PROPERTY
+5.1. Ownership:
+   - Original work remains property of Licensor
+   - Modifications must be clearly documented
+   - Contributions subject to Contributor Agreement
+
+5.2. Patents:
+   - Patent rights granted for licensed deployments
+   - No rights granted for unauthorized modifications
+   - Defense termination upon patent litigation
+
+6. WARRANTY AND LIABILITY
+6.1. Disclaimer:
+   THE SYSTEM IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+6.2. Limitation of Liability:
+   IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SYSTEM OR ITS USE.
+
+7. COMPLIANCE AND CERTIFICATION
+7.1. Required Standards:
+   - ISO 27001 compliance for information security
+   - Agricultural automation standards adherence
+   - Robotics safety standards compliance
+
+7.2. Certifications:
+   - CE marking where applicable
+   - FDA compliance for agricultural applications
+   - Equipment safety certifications
+
+8. TERMINATION
+8.1. The License terminates automatically upon:
+   - Breach of any term of this License
+   - Unauthorized distribution or modification
+   - Patent litigation against the System
+
+9. MISCELLANEOUS
+9.1. Governing Law:
+   This License shall be governed by international law and local jurisdictions where applicable.
+
+9.2. Severability:
+   If any provision is held invalid, remaining provisions remain in effect.
+
+9.3. Updates:
+   Licensor reserves the right to update License terms annually.
+
+For licensing inquiries contact:
+Agricultural Management System Development Team
+[Contact Information]
+
+END OF TERMS AND CONDITIONS
