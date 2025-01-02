@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ros2-controller
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: ros2-controller
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: robot-fleet-controller
+    app.kubernetes.io/version: jazzy
+    app.kubernetes.io/managed-by: kubernetes
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9090'
+    prometheus.io/path: '/metrics'
+    service.beta.kubernetes.io/load-balancer-optimization: 'low-latency'
+    sidecar.istio.io/inject: 'true'
+    topology.istio.io/network: 'agricultural-mesh'
+spec:
+  type: ClusterIP
+  ports:
+    - name: ros2-dds
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: ros2-controller
+    app.kubernetes.io/component: robot-fleet-controller
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hour session stickiness
+  publishNotReadyAddresses: false
