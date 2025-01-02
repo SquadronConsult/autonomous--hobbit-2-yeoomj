@@ -1,0 +1,213 @@
+version: "3.8"
+
+services:
+  # DeepStream video analytics service
+  deepstream:
+    build:
+      context: ./infrastructure/docker/deepstream
+      dockerfile: Dockerfile
+    image: agricultural-system/deepstream:6.2
+    container_name: deepstream
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - MAX_BATCH_SIZE=8
+      - MAX_STREAMS=24
+      - MAX_PROCESSING_LATENCY_MS=100
+      - GST_DEBUG=3
+    volumes:
+      - ./src/backend/src/deepstream:/opt/nvidia/deepstream/sources:ro
+      - ./models:/opt/nvidia/deepstream/models:ro
+      - deepstream_output:/opt/nvidia/deepstream/output
+    ports:
+      - "8000:8000"
+      - "8554:8554"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+          nvidia.com/gpu: 1
+        reservations:
+          cpus: '2'
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend_network
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ROS 2 robotics control service
+  ros2:
+    build:
+      context: ./infrastructure/docker/ros2
+      dockerfile: Dockerfile
+    image: agricultural-system/ros2:jazzy
+    container_name: ros2
+    environment:
+      - ROS_DOMAIN_ID=42
+      - ROS_LOCALHOST_ONLY=0
+      - RCUTILS_LOGGING_USE_STDOUT=1
+      - RCUTILS_CONSOLE_OUTPUT_FORMAT=[{severity}] [{time}] [{name}]: {message}
+    volumes:
+      - ./src/backend/src/ros2:/opt/ros2_ws/src:ro
+      - ros2_data:/opt/ros2_ws/data
+    ports:
+      - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "ros2", "node", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend_network
+
+  # TAO Toolkit for model training/inference
+  tao:
+    image: nvcr.io/nvidia/tao-toolkit:4.0.0-tf2.9.1
+    container_name: tao
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - MAX_BATCH_SIZE=32
+      - PRECISION=FP16
+    volumes:
+      - ./models:/workspace/models
+      - tao_output:/workspace/output
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+          nvidia.com/gpu: 1
+        reservations:
+          cpus: '4'
+          memory: 8G
+    networks:
+      - backend_network
+
+  # TimescaleDB for time-series data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: timescaledb
+    environment:
+      - POSTGRES_USER=agribot
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=telemetry
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agribot"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend_network
+    secrets:
+      - db_password
+
+  # Redis for caching and pub/sub
+  redis:
+    image: redis:7.0-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend_network
+
+  # MinIO for object storage
+  minio:
+    image: minio/minio:RELEASE.2023-07-07T07-13-57Z
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_access_key
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_secret_key
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend_network
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
+volumes:
+  deepstream_output:
+  ros2_data:
+  tao_output:
+  timescaledb_data:
+  redis_data:
+  minio_data:
+
+networks:
+  backend_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  minio_access_key:
+    file: ./secrets/minio_access_key.txt
+  minio_secret_key:
+    file: ./secrets/minio_secret_key.txt
