@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: security
+  labels:
+    app: vault
+    component: security
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+  annotations:
+    seccomp.security.alpha.kubernetes.io/pod: "runtime/default"
+    vault.hashicorp.com/auto-unseal: "true"
+    vault.hashicorp.com/audit-enabled: "true"
+    security.agricultural.io/compliance: "gdpr,iso27001"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: vault
+        security.agricultural.io/type: encryption
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8200"
+        prometheus.io/path: "/v1/sys/metrics"
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - vault
+            topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: vault
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.13.1
+        args:
+        - server
+        env:
+        - name: VAULT_LOCAL_CONFIG
+          value: |
+            {
+              "listener": {
+                "tcp": {
+                  "address": "0.0.0.0:8200",
+                  "tls_cert_file": "/vault/tls/tls.crt",
+                  "tls_key_file": "/vault/tls/tls.key",
+                  "tls_min_version": "tls12",
+                  "tls_prefer_server_cipher_suites": true
+                }
+              },
+              "storage": {
+                "file": {
+                  "path": "/vault/data"
+                }
+              },
+              "default_lease_ttl": "168h",
+              "max_lease_ttl": "720h",
+              "ui": true,
+              "log_level": "info",
+              "audit": {
+                "file": {
+                  "path": "/vault/audit/audit.log",
+                  "mode": "0600",
+                  "format": "json",
+                  "prefix": "vault-audit"
+                }
+              }
+            }
+        - name: VAULT_API_ADDR
+          value: "https://$(POD_IP):8200"
+        - name: VAULT_CLUSTER_ADDR
+          value: "https://$(POD_IP):8201"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - containerPort: 8200
+          name: api-port
+          protocol: TCP
+        - containerPort: 8201
+          name: cluster-port
+          protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: vault-tls
+          mountPath: /vault/tls
+          readOnly: true
+        - name: vault-data
+          mountPath: /vault/data
+        - name: vault-audit
+          mountPath: /vault/audit
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: api-port
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: api-port
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: vault-tls
+        secret:
+          secretName: encryption-keys
+          items:
+          - key: TLS_PRIVATE_KEY
+            path: tls.key
+          - key: TLS_CERTIFICATE
+            path: tls.crt
+      - name: vault-data
+        persistentVolumeClaim:
+          claimName: vault-data
+      - name: vault-audit
+        persistentVolumeClaim:
+          claimName: vault-audit
+      terminationGracePeriodSeconds: 30
