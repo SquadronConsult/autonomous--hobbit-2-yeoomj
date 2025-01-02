@@ -1,0 +1,134 @@
+# NVIDIA TAO Toolkit Configuration v4.0.0
+# Model: Crop Analysis EfficientDet-D0
+# Target: Jetson Orin AGX 64GB
+# Performance Target: <100ms inference latency
+
+model_parameters:
+  architecture: "efficientdet-d0"
+  input_shape: [512, 512, 3]  # Optimized for real-time processing
+  num_classes: 10  # Crop conditions and pest categories
+  backbone: "efficientnet-b0"
+  feature_levels: [3, 4, 5]
+  anchors:
+    scales: [1.0, 1.25, 1.5]
+    aspect_ratios: [0.5, 1.0, 2.0]
+  fpn:
+    num_channels: 64
+    use_separable_conv: true
+    use_batch_norm: true
+
+training_config:
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  optimizer:
+    type: "adam"
+    beta1: 0.9
+    beta2: 0.999
+    epsilon: 1.0e-7
+    weight_decay: 0.0001
+  scheduler:
+    type: "cosine"
+    warmup_epochs: 5
+    warmup_factor: 0.1
+    min_lr: 1.0e-6
+  loss:
+    box_loss_weight: 50.0
+    class_loss_weight: 1.0
+    focal_loss_alpha: 0.25
+    focal_loss_gamma: 1.5
+
+optimization_config:
+  precision: "fp16"  # Mixed precision for optimal performance
+  tensorrt_params:
+    workspace_size: 1073741824  # 1GB
+    max_batch_size: 8
+    min_batch_size: 1
+    optimal_batch_size: 4
+    dla_core: 0
+    gpu_id: 0
+    max_workspace_size: 1073741824
+    strict_type_constraints: true
+    builder_optimization_level: 3
+  dynamic_batching: true
+  calibration_config:
+    calibration_batches: 100
+    calibration_cache: "calibration.cache"
+    max_calibration_size: 512
+    calibration_type: "entropy"
+  pruning:
+    enabled: true
+    target_sparsity: 0.3
+    pruning_schedule: "polynomial"
+
+augmentation_config:
+  transforms:
+    - name: "RandomHorizontalFlip"
+      probability: 0.5
+    - name: "RandomRotate"
+      probability: 0.3
+      parameters:
+        angle_range: [-10, 10]
+    - name: "RandomBrightnessContrast"
+      probability: 0.3
+      parameters:
+        brightness_limit: 0.2
+        contrast_limit: 0.2
+    - name: "RandomCrop"
+      probability: 0.5
+      parameters:
+        min_height: 450
+        min_width: 450
+  parameters:
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+  probability: 0.8
+  random_seed: 42
+
+export_config:
+  format: "etlt"
+  input_format: "bgr8"
+  input_dtype: "float32"
+  onnx_opset: 11
+  tensorrt:
+    data_type: "fp16"
+    engine_file: "cropanalysis_engine.plan"
+    int8_calibration: false
+    max_workspace_size: 1073741824
+    max_batch_size: 8
+
+evaluation_config:
+  metrics:
+    - "mAP"
+    - "latency"
+  validation_batch_size: 32
+  checkpoint_interval: 5
+  eval_interval: 5
+
+dataset_config:
+  train_dataset:
+    data_format: "kitti"
+    image_dir: "data/train/images"
+    label_dir: "data/train/labels"
+    cache_data: true
+  validation_dataset:
+    data_format: "kitti"
+    image_dir: "data/val/images"
+    label_dir: "data/val/labels"
+    cache_data: true
+  num_workers: 4
+  prefetch_factor: 2
+
+experiment:
+  name: "crop_analysis_efficientdet"
+  output_dir: "experiments/crop_analysis"
+  random_seed: 42
+  mixed_precision: true
+  amp_level: "O1"
+  distributed_training: false
+  checkpoint:
+    save_best: true
+    save_last: true
+    metric: "mAP"
+    mode: "max"
