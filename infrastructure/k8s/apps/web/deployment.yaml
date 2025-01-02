@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: web-frontend
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/version: 1.0.0
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '80'
+    prometheus.io/path: '/metrics'
+    deployment.kubernetes.io/revision: '1'
+    security.kubernetes.io/pod-security: 'restricted'
+    container.security.io/seccomp-profile: 'runtime/default'
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-frontend
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-frontend
+        app.kubernetes.io/component: frontend
+      annotations:
+        checksum/config: ${CONFIG_CHECKSUM}
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '80'
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: web-frontend
+      containers:
+      - name: web-frontend
+        image: agricultural-system/web-frontend:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: TZ
+          value: "UTC"
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: nginx-cache
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: web-frontend
+      automountServiceAccountToken: true
