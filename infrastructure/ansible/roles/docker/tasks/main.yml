@@ -1,0 +1,191 @@
+---
+# Ansible tasks for Docker installation and configuration on Jetson Orin
+# Version: 1.0.0
+# Last updated: 2024-02-20
+# Requires: Ansible 2.15+, ansible.posix 1.5.1+
+
+- name: Import common tasks
+  ansible.builtin.import_tasks: ../common/tasks/main.yml
+  tags: ['system', 'common']
+
+- name: Add Docker GPG apt key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  become: true
+  tags: ['docker', 'security']
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=arm64] https://download.docker.com/linux/ubuntu jammy stable"
+    state: present
+    filename: docker
+  become: true
+  tags: ['docker']
+
+- name: Install Docker packages
+  ansible.builtin.apt:
+    name:
+      - "docker-ce={{ docker_version }}"
+      - "docker-ce-cli={{ docker_version }}"
+      - "containerd.io"
+      - "docker-compose-plugin={{ docker_compose_version }}"
+    state: present
+    update_cache: yes
+  become: true
+  tags: ['docker']
+
+- name: Install NVIDIA Container Runtime
+  ansible.builtin.apt:
+    name: "nvidia-container-runtime={{ nvidia_container_runtime_version }}"
+    state: present
+  become: true
+  tags: ['docker', 'nvidia']
+
+- name: Create Docker daemon configuration directory
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+  become: true
+  tags: ['docker', 'security']
+
+- name: Configure Docker daemon
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+    owner: root
+    group: root
+    content: "{{ docker_daemon_config | to_nice_json }}"
+  become: true
+  notify: restart docker
+  tags: ['docker', 'security']
+
+- name: Create Docker security directory
+  ansible.builtin.file:
+    path: /etc/docker/seccomp
+    state: directory
+    mode: '0755'
+  become: true
+  tags: ['docker', 'security']
+
+- name: Deploy Docker seccomp profile
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/docker/engine/master/profiles/seccomp/default.json
+    dest: /etc/docker/seccomp.json
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  tags: ['docker', 'security']
+
+- name: Configure system resource limits for Docker
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-docker.conf
+  with_items:
+    - { key: 'fs.file-max', value: '1000000' }
+    - { key: 'kernel.keys.root_maxkeys', value: '1000000' }
+    - { key: 'kernel.keys.root_maxbytes', value: '25000000' }
+  become: true
+  tags: ['docker', 'system']
+
+- name: Create Docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+  become: true
+  tags: ['docker', 'security']
+
+- name: Configure Docker audit rules
+  ansible.builtin.template:
+    src: docker-audit.rules.j2
+    dest: /etc/audit/rules.d/docker.rules
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  notify: restart auditd
+  tags: ['docker', 'security', 'audit']
+
+- name: Enable Docker metrics collection
+  ansible.builtin.template:
+    src: docker-metrics.service.j2
+    dest: /etc/systemd/system/docker-metrics.service
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart docker-metrics
+  tags: ['docker', 'monitoring']
+
+- name: Configure Docker log rotation
+  ansible.builtin.copy:
+    content: |
+      /var/lib/docker/containers/*/*.log {
+        rotate 7
+        daily
+        compress
+        size=100M
+        missingok
+        delaycompress
+        copytruncate
+      }
+    dest: /etc/logrotate.d/docker
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  tags: ['docker', 'logging']
+
+- name: Enable and start Docker service
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+  become: true
+  tags: ['docker', 'services']
+
+- name: Verify Docker installation
+  ansible.builtin.command: docker version
+  changed_when: false
+  register: docker_version_check
+  tags: ['docker', 'verify']
+
+- name: Verify NVIDIA runtime
+  ansible.builtin.command: nvidia-container-runtime --version
+  changed_when: false
+  register: nvidia_runtime_check
+  tags: ['docker', 'nvidia', 'verify']
+
+- name: Configure Docker network
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+    owner: root
+    group: root
+  vars:
+    docker_network_config:
+      bip: "172.17.0.1/16"
+      fixed-cidr: "172.17.0.0/16"
+      default-address-pools:
+        - base: "172.18.0.0/16"
+          size: 24
+  become: true
+  notify: restart docker
+  tags: ['docker', 'network']
+
+- name: Setup Docker cleanup job
+  ansible.builtin.cron:
+    name: "Docker system prune"
+    job: "docker system prune -af --volumes --filter 'until=168h'"
+    hour: "3"
+    minute: "0"
+    weekday: "0"
+    user: root
+  become: true
+  tags: ['docker', 'maintenance']
