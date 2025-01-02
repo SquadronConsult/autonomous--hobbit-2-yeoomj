@@ -1,0 +1,30 @@
+# Kubernetes Service configuration for Grafana monitoring dashboard
+# Version: v1
+# Provides visualization access for system metrics, fleet telemetry, and analytics data
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: grafana
+  namespace: agricultural-system
+  labels:
+    app: grafana
+    component: monitoring
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: monitoring
+  annotations:
+    description: "Grafana monitoring dashboard service for agricultural management system"
+    monitoring.kubernetes.io/scrape: "true"
+    monitoring.kubernetes.io/port: "3000"
+
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: grafana
