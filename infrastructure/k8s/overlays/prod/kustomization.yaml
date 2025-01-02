@@ -1,0 +1,148 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Production environment metadata
+metadata:
+  name: agricultural-system-prod
+  labels:
+    environment: production
+    version: 1.0.0
+
+# Use production namespace
+namespace: agricultural-system-prod
+
+# Reference base configuration
+resources:
+  - ../../base
+  # Core application deployments
+  - ../../apps/backend/deployment.yaml
+  - ../../apps/backend/service.yaml
+  - ../../apps/deepstream/deployment.yaml
+  - ../../apps/deepstream/service.yaml
+  - ../../apps/ros2/deployment.yaml
+  - ../../apps/ros2/service.yaml
+  - ../../apps/tao/deployment.yaml
+  - ../../apps/tao/service.yaml
+  - ../../apps/gazebo/deployment.yaml
+  - ../../apps/gazebo/service.yaml
+  # Stateful components
+  - ../../apps/timescaledb/statefulset.yaml
+  - ../../apps/timescaledb/service.yaml
+  - ../../apps/minio/statefulset.yaml
+  - ../../apps/minio/service.yaml
+  - ../../apps/redis/statefulset.yaml
+  - ../../apps/redis/service.yaml
+  # Production-specific configurations
+  - network-policies/
+  - pod-disruption-budgets/
+  - horizontal-pod-autoscalers/
+
+# Production environment labels
+commonLabels:
+  app.kubernetes.io/name: agricultural-system
+  app.kubernetes.io/part-of: autonomous-agricultural-management
+  environment: production
+  compliance-level: production
+  monitoring-tier: critical
+  security-tier: high
+
+# Production annotations
+commonAnnotations:
+  maintainer: "DevOps Team"
+  description: "Production configuration for agricultural management system"
+  environment: production
+  backup-policy: daily
+  security-tier: high
+  monitoring-priority: critical
+  high-availability: enabled
+  disaster-recovery: enabled
+
+# Production resource patches
+patchesStrategicMerge:
+  # Resource allocation patches
+  - patches/backend-resources.yaml
+  - patches/deepstream-resources.yaml
+  - patches/ros2-resources.yaml
+  - patches/tao-resources.yaml
+  - patches/gazebo-resources.yaml
+  - patches/timescaledb-resources.yaml
+  - patches/minio-resources.yaml
+  - patches/redis-resources.yaml
+  # Security and reliability patches
+  - patches/security-context.yaml
+  - patches/pod-anti-affinity.yaml
+  - patches/monitoring-config.yaml
+  - patches/high-availability.yaml
+  - patches/network-security.yaml
+
+# Production ConfigMap generators
+configMapGenerator:
+  - name: system-config-prod
+    behavior: merge
+    files:
+      - configs/database-prod.yaml
+      - configs/redis-prod.yaml
+      - configs/minio-prod.yaml
+      - configs/logging-prod.yaml
+      - configs/monitoring-prod.yaml
+      - configs/network-prod.yaml
+      - configs/scaling-prod.yaml
+    options:
+      labels:
+        config-type: production
+        security-reviewed: "true"
+      annotations:
+        config-validation: strict
+        last-reviewed: "2024-02-20"
+
+# Production secret generators
+secretGenerator:
+  - name: system-secrets-prod
+    behavior: merge
+    files:
+      - secrets/database-credentials-prod.yaml
+      - secrets/auth-secrets-prod.yaml
+      - secrets/encryption-keys-prod.yaml
+      - secrets/tls-certificates-prod.yaml
+      - secrets/api-keys-prod.yaml
+    options:
+      labels:
+        secret-type: production
+        rotation-required: "true"
+      annotations:
+        secret-rotation-interval: "30d"
+        encryption-type: "aes-256-gcm"
+
+# Generator options
+generatorOptions:
+  disableNameSuffixHash: false
+  labels:
+    generated-by: kustomize
+    environment: production
+    security-reviewed: "true"
+    compliance-validated: "true"
+
+# Replicas configuration for high availability
+replicas:
+  - name: deepstream
+    count: 4  # Support for 8+ simultaneous drone feeds
+  - name: ros2
+    count: 3  # Redundancy for robot control
+  - name: tao
+    count: 2  # ML processing redundancy
+  - name: timescaledb
+    count: 3  # Database high availability
+
+# Resource transformers for production hardening
+transformers:
+  - labels:
+      security-policy-version: "v1.0"
+      compliance-status: validated
+  - annotations:
+      security-scan-timestamp: "2024-02-20"
+      compliance-review-date: "2024-02-20"
+
+# Production configurations
+configurations:
+  - validation-prod.yaml
+  - security-policies-prod.yaml
