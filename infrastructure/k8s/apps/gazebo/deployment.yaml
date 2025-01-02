@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gazebo-simulation
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: gazebo
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: simulation
+  annotations:
+    description: "Gazebo simulation environment for agricultural robotics testing"
+    version: "11.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gazebo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gazebo
+      annotations:
+        security.kubernetes.io/seccomp-profile: runtime/default
+        container.security.io/pod-security: restricted
+    spec:
+      containers:
+      - name: gazebo
+        image: gazebo:11.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - containerPort: 11345
+          name: gazebo
+          protocol: TCP
+        - containerPort: 9090
+          name: ros-bridge
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "4"
+            memory: "8Gi"
+          limits:
+            cpu: "8"
+            memory: "16Gi"
+        env:
+        - name: ROS_DOMAIN_ID
+          valueFrom:
+            configMapKeyRef:
+              name: ros2-config
+              key: ROS_DOMAIN_ID
+        - name: ROS_NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              name: ros2-config
+              key: ROS_NAMESPACE
+        - name: GAZEBO_MASTER_URI
+          value: "http://localhost:11345"
+        - name: GAZEBO_MODEL_PATH
+          value: "/usr/share/gazebo/models"
+        - name: GAZEBO_RESOURCE_PATH
+          value: "/usr/share/gazebo"
+        volumeMounts:
+        - name: simulation-models
+          mountPath: "/usr/share/gazebo/models"
+          readOnly: true
+        - name: ros-security
+          mountPath: "/etc/ros/security"
+          readOnly: true
+        livenessProbe:
+          tcpSocket:
+            port: 11345
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 11345
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          tcpSocket:
+            port: 11345
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+      volumes:
+      - name: simulation-models
+        configMap:
+          name: gazebo-models
+          optional: false
+      - name: ros-security
+        secret:
+          secretName: ros-security-keys
+          defaultMode: 0400
+      serviceAccountName: gazebo-simulation
+      nodeSelector:
+        kubernetes.io/os: linux
+        simulation/enabled: "true"
+      tolerations:
+      - key: "simulation"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
