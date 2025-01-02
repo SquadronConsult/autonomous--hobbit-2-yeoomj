@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: agricultural-system
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/part-of: autonomous-agricultural-management
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/version: RELEASE.2023-07-07
+spec:
+  serviceName: minio
+  replicas: 4
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/component: object-storage
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+        prometheus.io/path: "/minio/v2/metrics/cluster"
+    spec:
+      # Ensure high availability by spreading pods across nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - minio
+            topologyKey: kubernetes.io/hostname
+      
+      # Security context for non-root execution
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2023-07-07
+        args:
+        - server
+        - --console-address
+        - ":9001"
+        - --address
+        - ":9000"
+        - /data
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: root-user
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: root-password
+        - name: MINIO_BROWSER
+          valueFrom:
+            configMapKeyRef:
+              name: minio-config
+              key: MINIO_BROWSER
+        - name: MINIO_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: minio-config
+              key: MINIO_REGION
+        - name: MINIO_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              name: minio-config
+              key: MINIO_COMPRESSION
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        
+        # Resource limits based on requirements
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+        
+        # Volume mounts for persistent storage
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Startup probe for initial boot
+        startupProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+  
+  # Persistent volume claims for each pod
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: standard-storage
+      resources:
+        requests:
+          storage: 500Gi
