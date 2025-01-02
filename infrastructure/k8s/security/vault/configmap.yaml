@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: security
+  labels:
+    app: vault
+    component: security
+    environment: production
+data:
+  vault.hcl: |
+    # Vault Server Configuration
+    # Version: 1.13.1
+    # Purpose: Secure secret management and encryption services configuration
+
+    # System Configuration
+    disable_mlock = true
+    log_level = "warn"
+    ui = true
+
+    # Storage Configuration
+    storage "file" {
+      path = "/vault/data"
+      permissions = "0600"
+    }
+
+    # Network Listener Configuration
+    listener "tcp" {
+      address = "0.0.0.0:8200"
+      tls_cert_file = "/vault/tls/tls.crt"
+      tls_key_file = "/vault/tls/tls.key"
+      tls_min_version = "tls12"
+      tls_prefer_server_cipher_suites = true
+      tls_cipher_suites = [
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+      ]
+    }
+
+    # API and Cluster Configuration
+    api_addr = "https://$(POD_IP):8200"
+    cluster_addr = "https://$(POD_IP):8201"
+
+    # Telemetry Configuration
+    telemetry {
+      prometheus_retention_time = "24h"
+      disable_hostname = true
+      enable_hostname_label = false
+    }
+
+    # Audit Configuration
+    audit {
+      type = "file"
+      path = "/vault/audit/audit.log"
+      mode = "0600"
+      format = "json"
+      prefix = "vault-audit"
+    }
+
+    # Security Settings
+    default_lease_ttl = "168h"
+    max_lease_ttl = "720h"
+    audit_non_hmac_request_keys = []
+    audit_non_hmac_response_keys = []
+    disable_sealwrap = false
+    disable_printable_check = false
+
+    # Plugin Configuration
+    plugin_directory = "/vault/plugins"
+    
+    # Seal Configuration
+    seal "transit" {
+      disable_renewal = false
+      key_name = "autounseal"
+      mount_path = "transit/"
+      tls_skip_verify = false
+    }
